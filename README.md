@@ -5,27 +5,25 @@
 A zero-install replacement for Atmel FLIP, built for AT89LP51RD2 / AT89C51RD2
 8051 development with SDCC.
 
-No Python. No Node. No drivers to hunt for. PowerShell and .NET WinForms, and
-both are already on your Windows machine.
+No Flip. No Python. No Node. No drivers to hunt for. PowerShell and .NET
+WinForms, and both of those are already on your Windows machine.
 
 ## Why
 
-Because Atmel FLIP is a Java dinosaur, because it traps your cursor, because it
-makes you click six things to flash one file, and because it never tells you
-what a button is for.
+Because flashing one file in Atmel FLIP takes six clicks, because it never tells
+you what any button is for, and because there is no way to point something else
+at it and let go.
 
 FLIPpen Hel fixes that. It flashes in one keypress, tells you what every control
 does on hover, remembers your hex and your port, watches your serial output, and
-can be driven from a terminal with no window at all.
+can be driven from a terminal by a script or an agent with no window at all.
 
-## What you need
+## Install and run
 
-* Windows 10 or 11
-* [Atmel FLIP 3.4.7](https://www.microchip.com/en-us/development-tool/flip) installed
-  (FLIPpen Hel reuses its `batchisp.exe`; it does not replace it)
-* Your hex, compiled with SDCC and converted with `packihx`
+Grab the zip from the [Releases tab](https://github.com/AbstractDimensions/flippen-hel/releases/latest),
+unzip it anywhere, and double-click `FLIPpen Hel.bat`.
 
-## Running it
+Or run it by hand:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -STA -File FlipRunner.ps1
@@ -33,12 +31,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -STA -File FlipRunner.ps1
 
 Then press **Run** (`F5`).
 
+The zip carries its own copy of `batchisp.exe` and the Atmel device part files,
+so nothing has to be installed. If Atmel FLIP 3.4.7 *is* installed, FLIPpen Hel
+prefers that copy — but it never needs it.
+
+{: .note }
+FLIPpen Hel is a from-scratch PowerShell reimplementation, not a fork of Atmel
+FLIP. Nothing from the Flip source tree is used; the bundled `batchisp.exe` and
+part files are Atmel's own binaries.
+
 ## Without the GUI
 
 ```powershell
-.\FlipRunner.ps1 -Cli -Action Flash -Hex firmware.hex -Port COM3
+.\FlipRunner.ps1 -Cli -Action Flash   -Hex firmware.hex -Port COM3
 .\FlipRunner.ps1 -Cli -Action Monitor -Port COM3 -Seconds 5
-.\FlipRunner.ps1 -Cli -Action Reset -Port COM3
+.\FlipRunner.ps1 -Cli -Action Reset   -Port COM3
 ```
 
 `Flash`, `Reset` and `Monitor`. Zero windows, plain output, exit code `0` or `1`
@@ -52,4 +59,5 @@ Full docs are published at
 
 ## Licence
 
-MIT.
+MIT, except the bundled `batchisp.exe` and `PartDescriptionFiles/`, which remain
+Atmel/Microchip software covered by their own licence.

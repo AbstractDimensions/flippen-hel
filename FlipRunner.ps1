@@ -1,9 +1,9 @@
-﻿# FlipRunner â€” Flip-lookalike one-click flash + serial for AT89C51RD2/LP51RD2
+# FlipRunner --- Flip-lookalike one-click flash + serial for AT89C51RD2/LP51RD2
 # "Want Atmel FLIP was 'n groot FLOP" - Afrikaans pun: wish Atmel FLIP was a
 # big FLOP. Mascot is a flip-flop called Fillip.
 # Run button = erase + blankcheck + program + verify + start (remembers last hex).
 # No installs needed (PowerShell + .NET WinForms).
-# NOTE: Flip 3.4.7 ships AT89C51RD2.xml but NO AT89LP51RD2.xml â€” default is AT89C51RD2.
+# NOTE: Flip 3.4.7 ships AT89C51RD2.xml but NO AT89LP51RD2.xml --- default is AT89C51RD2.
 
 param(
     [string]$HexFile = "",
@@ -21,7 +21,18 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 # ---------- portable defaults (friend/faculty friendly) ----------
+# Dependency preference order:
+#   1. a batchisp.exe bundled NEXT TO THIS SCRIPT (bin\ or same folder) - this
+#      is what ships in the release zip, so the app needs no Flip install
+#   2. an installed Atmel FLIP 3.4.7 (auto-detected)
+# batchisp.exe is standalone: it needs no DLLs and no working directory, so a
+# single copied binary is the entire dependency.
 function Find-BatchIsp {
+    $local = @(
+        (Join-Path $PSScriptRoot 'bin\batchisp.exe'),
+        (Join-Path $PSScriptRoot 'batchisp.exe')
+    )
+    foreach ($c in $local) { if (Test-Path $c) { return $c } }
     $cands = @(
         'C:\Program Files (x86)\Atmel\Flip 3.4.7\bin\batchisp.exe',
         'C:\Program Files\Atmel\Flip 3.4.7\bin\batchisp.exe'
@@ -30,6 +41,18 @@ function Find-BatchIsp {
     $g = Get-Command batchisp.exe -ErrorAction SilentlyContinue
     if ($g) { return $g.Source }
     return $cands[0]
+}
+# Device tokens come from a bundled part-file folder when present, otherwise
+# from the Flip install.
+function Find-PartFileDir {
+    $local = @(
+        (Join-Path $PSScriptRoot 'PartDescriptionFiles'),
+        (Join-Path $PSScriptRoot 'bin\PartDescriptionFiles')
+    )
+    foreach ($c in $local) { if (Test-Path $c) { return $c } }
+    $i = 'C:\Program Files (x86)\Atmel\Flip 3.4.7\bin\PartDescriptionFiles'
+    if (Test-Path $i) { return $i }
+    return $local[0]
 }
 function Find-CodeBlocksRoot {
     $cands = @(
@@ -50,7 +73,7 @@ $FirmwareSnippet = @'
 // 1. Call UartResetPoll() inside your main while(1) loop.
 // 2. In FlipRunner, open serial then press Reset (Ctrl+R).
 //    The PC sends "!!!RESET!!!" and this reboots the APP.
-//    (TX/RX alone CANNOT enter the bootloader â€” that still needs the
+//    (TX/RX alone CANNOT enter the bootloader --- that still needs the
 //     hardware ISP condition or BLJB/AutoISP wiring. This is app-restart
 //     for fast testing without reflashing.)
 void UartResetPoll(void) {
@@ -108,13 +131,13 @@ function Get-ComPortsFiltered {
             $out += $p
         }
         if ($out.Count -gt 0) { return $out }
-        return $all  # WMI gave nothing useful â€” show raw list rather than empty
+        return $all  # WMI gave nothing useful --- show raw list rather than empty
     } catch { return $all }
 }
 
 # Device tokens harvested from Flip part files (NAME attribute, filename fallback).
 function Get-DeviceTokens {
-    $partDir = 'C:\Program Files (x86)\Atmel\Flip 3.4.7\bin\PartDescriptionFiles'
+    $partDir = Find-PartFileDir
     $tokens = @()
     if (-not (Test-Path $partDir)) { return @() }
     $files = Get-ChildItem $partDir -Filter *.xml -File -ErrorAction SilentlyContinue
@@ -1497,7 +1520,7 @@ function Show-SpecialBits {
 }
 
 function Run-BatchIsp($extraOp) {
-    # Task 18: snapshot live control values up front â€” an open modeless
+    # Task 18: snapshot live control values up front --- an open modeless
     # Settings can never desync a flash started from the main window.
     $hex = ("$($cmbHex.Text)").Trim('" ').Trim()
     $snapDev = ("$($txtDev.Text)").Trim()

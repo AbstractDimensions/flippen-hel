@@ -1,4 +1,4 @@
-﻿---
+---
 layout: home
 title: FLIPpen Hel
 nav_exclude: true
@@ -17,9 +17,9 @@ both of those are already on your Windows machine.
 
 ## Why
 
-Because Atmel FLIP is a Java dinosaur, because it traps your cursor, because it
-makes you click six things to flash one file, and because it never tells you
-what a button is for.
+Because flashing one file in Atmel FLIP takes six clicks, because it never
+tells you what any button is for, and because there is no way to point
+something else at it and let go.
 
 FLIPpen Hel fixes that. It flashes in one keypress, tells you what every
 control does on hover, remembers your hex and your port, watches your serial
@@ -28,10 +28,12 @@ window at all.
 
 ## Get it
 
-[Download FlipRunner.ps1](https://github.com/AbstractDimensions/flippen-hel/releases/latest/download/FlipRunner.ps1){: .btn .btn-purple .fs-5 .mb-4 .mb-md-0 .mr-2 }
+Download the zip from the [Releases tab](https://github.com/AbstractDimensions/flippen-hel/releases/latest),
+unzip it anywhere, and run `FlipRunner.ps1` — or double-click `FLIPpen Hel.bat`.
 
-You need [Atmel FLIP 3.4.7](https://www.microchip.com/en-us/development-tool/flip)
-installed. That is the only dependency.
+Nothing to install. The release carries its own copy of `batchisp.exe` and the
+device part files, so Atmel FLIP is **not** required. If you do have Flip
+installed, that copy gets used instead.
 
 Then:
 
