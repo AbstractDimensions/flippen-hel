@@ -1,0 +1,22 @@
+// FLIPpen Hel - custom overrides.
+//
+// Placeholder logo: Flip's own splash swoosh, recoloured light-blue for the
+// dark theme and put on a transparent background. Replace this file's image
+// (docs/assets/img/logo.png) with Fillip when he arrives.
+
+.site-logo {
+  background-image: url('/flippen-hel/assets/img/logo.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  width: 220px;
+  height: 100px;
+}
+
+// Keep the sidebar header from swelling on narrow screens.
+@media (max-width: 800px) {
+  .site-logo {
+    width: 140px;
+    height: 64px;
+  }
+}
