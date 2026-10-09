@@ -1,0 +1,40 @@
+# FLIPpen Hel - files that should never be committed
+
+# Local user state (ports, devices, hex MRU, window prefs)
+FlipRunner.json
+
+# Firmware build output
+*.hex
+*.ihx
+*.bin
+*.lst
+*.map
+*.mem
+*.obj
+*.rel
+*.rst
+*.sym
+*.asm
+*.adb
+*.lk
+*.cdb
+*.omf
+
+# Jekyll build output
+docs/_site/
+docs/.jekyll-cache/
+docs/.jekyll-metadata
+docs/vendor/
+docs/.bundle/
+
+# OneDrive / Windows cruft
+desktop.ini
+Thumbs.db
+ehthumbs.db
+.DS_Store
+*.tmp
+
+# Editors
+.vscode/
+.idea/
+*.swp
