@@ -7,36 +7,41 @@ nav_order: 0
 
 **Read this first.**
 
-FLIPpen Hel was **entirely vibe coded** — written by an AI in conversation with one
-developer, with no traditional design document, no tests, and no code review by
-anybody who knew what they were doing. The documentation on this site was
-**also written by that same AI**.
+FLIPpen Hel was built by an AI in conversation with one developer — no design
+document, no tests, and no code review by a second person. That is not a
+disclaimer for its own sake. It explains most of the quirks you are about to
+run into, and it tells you how much weight to put on any given claim.
 
-That has consequences you should know about:
+What to actually expect:
 
-* **The docs may be wrong.** They are best-effort prose generated from the same
-  imperfect understanding that produced the code. Where the docs and the code
-  disagree, the code is probably right and this page is probably wrong.
-* **Take the confident tone with a grain of salt.** A lot of it reads like
-  someone knew what they were talking about. They did not.
-* **It was never reviewed by an experienced Windows developer.** It works on one
-  developer's machine. That is not the same as working on yours.
-* **The hardware is unverified.** Everything about flashing, serial and
-  programming mode was reasoned from Atmel's documentation, not confirmed
-  against a real AT89LP51RD2 board. Treat every claim about the chip as
-  untested.
+* **Nothing here was confirmed against a real AT89LP51RD2 board.** Everything
+  about flashing, serial and programming mode was reasoned from Atmel's own
+  documentation. It works on the machine it was written on. That is a single
+  data point, not a test matrix.
+* **The documentation was written by the same AI**, so where this site and the
+  tool disagree, the tool is probably right. Which is exactly the kind of bug
+  worth reporting.
+* **The UI is deliberately modelled on FLIP**, including parts that are
+  redundant — the checkboxes that turn green on pass and red on fail, the
+  status LEDs, the three-panel layout. If FLIP has a habit you rely on, it is
+  probably still there, and if it is missing that is a real bug.
+* **Automation is real and switchable.** Everything it does without asking —
+  auto device detection, auto COM port, auto port retry, auto hex reload, auto
+  terminal — has a checkbox. Turn them off and it behaves like FLIP, because
+  FLIP was the brief.
 
-**If you find a discrepancy in the documentation, please report it as a bug.** A
-doc that says the opposite of what the tool does is a defect, and it is exactly
-the kind of thing this project needs to hear about. Use the **Feedback** button
-in the app, or the
-[bug report form](https://github.com/AbstractDimensions/flippen-hel/issues/new/choose).
+If something behaves oddly, it is far more likely to be an honest gap in an
+unreviewed tool than a deliberate choice. Reports are genuinely useful and read.
+
 
 ---
 
 # FLIPpen Hel
 
+**[FLIPping hell]** *— the name is a pun: FLIP in hell.*
+
 *Want Atmel FLIP was 'n groot FLOP.*
+**[Because Atmel FLIP is a big FLOP.]**
 
 A zero-install replacement for Atmel FLIP, built for **AT89LP51RD2** and
 **AT89C51RD2** 8051 development with SDCC.

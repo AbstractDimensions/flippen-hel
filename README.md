@@ -1,6 +1,8 @@
 # FLIPpen Hel
 
-**Want Atmel FLIP was 'n groot FLOP.**
+**[FLIPping hell]** *— the name is a pun: FLIP in hell.*
+
+*Want Atmel FLIP was 'n groot FLOP.* **[Because Atmel FLIP is a big FLOP.]**
 
 A zero-install replacement for Atmel FLIP, built for AT89LP51RD2 / AT89C51RD2
 8051 development with SDCC.
@@ -65,12 +67,27 @@ Atmel/Microchip software covered by their own licence.
 
 ---
 
-> **This project was entirely vibe coded, and these docs were written by the same AI.**
-> Everything here - the code, the documentation, the wiring advice - came out of
-> a conversation, with no tests and no review by an experienced Windows
-> developer. The docs may be wrong. Nothing here was confirmed against a real
-> AT89LP51RD2 board.
->
-> **Found a discrepancy in the docs? Report it as a bug.** Use the **Feedback**
-> button in the app or the
-> [bug report form](https://github.com/AbstractDimensions/flippen-hel/issues/new/choose).
+**FLIPpen Hel** *[FLIPping hell]* — a zero-install Atmel FLIP replacement for
+AT89LP51RD2 / AT89C51RD2 development with SDCC. No Flip install, no Python, no
+Node. One keypress to flash, a built-in serial monitor, firmware reset over
+UART, and a headless CLI that a Makefile or an AI agent can drive.
+
+| | |
+|---|---|
+| Platform | Windows 10 / 11 |
+| Needs | PowerShell 5.1+, .NET WinForms (already on Windows) |
+| Licence | MIT (bundled `batchisp.exe` and part files remain Atmel's) |
+
+### How this was made
+
+Built by an AI in conversation with one developer. No tests, no second reviewer.
+Nothing here was confirmed against a real AT89LP51RD2 board — the flashing,
+serial and programming-mode behaviour was reasoned from Atmel's documentation.
+Where the docs and the tool disagree, the tool is probably right, and a report
+would be genuinely useful. Hit **Feedback** in the app or open a
+[bug report](https://github.com/AbstractDimensions/flippen-hel/issues/new/choose).
+
+> **Translation, since the name needs one:** the Afrikaans pun is *"Want Atmel
+> FLIP was 'n groot FLOP"* — roughly *"because Atmel FLIP is a big FLOP."*
+
+## Install and run
