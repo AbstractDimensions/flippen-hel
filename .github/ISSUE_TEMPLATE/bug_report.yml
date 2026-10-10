@@ -1,0 +1,76 @@
+name: Something went wrong
+description: Report a problem with FLIPpen Hel
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Something broke?
+
+        No GitHub knowledge needed. Fill in what you can, skip the rest, and
+        press **Submit new issue** at the bottom.
+
+        **A screenshot of the FLIPpen Hel window is the single most useful
+        thing you can attach.** Press **Win+Shift+S**, drag over the window,
+        then **Ctrl+V** straight into this box.
+
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened?
+      description: What did you see, in your own words?
+      placeholder: |
+        Example: "I pressed Run, the popup came up, then Erase showed a red
+        light and the log said FAIL exit -1."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+      placeholder: |
+        Example: "I expected the flash to finish and my program to start."
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How do we make it happen again?
+      description: Numbered steps, as short as you like.
+      placeholder: |
+        1. Open FLIPpen Hel
+        2. Plug in the board
+        3. Press Run
+        4. Red light on Erase
+    validations:
+      required: false
+
+  - type: textarea
+    id: log
+    attributes:
+      label: The log from the Serial monitor window
+      description: |
+        Copy the text out of the **Terminal** window and paste it here.
+        Everything on it is useful, even if it looks like noise.
+      render: text
+    validations:
+      required: false
+
+  - type: input
+    id: board
+    attributes:
+      label: Your board and how you wired it (optional)
+      description: |
+        Which board, and how it is connected. Is DTR wired to RST? Is RTS
+        wired to PSEN?
+      placeholder: "AT89LP51RD2, DTR to RST wired, RTS not wired"
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        By submitting you agree your report can be used to fix FLIPpen Hel.

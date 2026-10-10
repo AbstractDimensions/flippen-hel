@@ -452,6 +452,7 @@ foreach ($m in @('File', 'Buffer', 'Device', 'Settings', 'Help')) {
     if ($m -eq 'Help') {
         $a = New-Object Windows.Forms.ToolStripMenuItem; $a.Text = 'Copy firmware reset snippet'; $a.ToolTipText = 'Copy C snippet for UART reset reboot to clipboard'; $a.Add_Click({ Copy-FirmwareSnippet }); [void]$mi.DropDownItems.Add($a)
         $w = New-Object Windows.Forms.ToolStripMenuItem; $w.Text = 'Help topics...'; $w.ToolTipText = 'Open firmware reset explanation window'; $w.Add_Click({ Show-Help }); [void]$mi.DropDownItems.Add($w)
+        $fb = New-Object Windows.Forms.ToolStripMenuItem; $fb.Text = 'Report a bug or suggest...'; $fb.ToolTipText = 'Opens the GitHub issue form. Add a screenshot with Snipping Tool or Win+Shift+S if a picture helps'; $fb.Add_Click({ Invoke-ReportIssue }); [void]$mi.DropDownItems.Add($fb)
     }
     if ($m -eq 'Device') {
         $deviceMenu = $mi
@@ -542,6 +543,11 @@ function New-GreyIcon($name) {
         $g.DrawRectangle($pen2, 2, 6, 28, 22)
         $g.FillRectangle($brush, 6, 10, 11, 4)
         $g.DrawLine($pen, 6, 20, 18, 20)
+    } elseif ($name -eq 'speech') {
+        # speech bubble (feedback / report)
+        $g.DrawLine($pen2, 8, 20, 13, 28); $g.DrawLine($pen2, 13, 28, 18, 20)
+        $g.DrawRectangle($pen2, 3, 4, 27, 19)
+        $g.DrawLine($pen, 8, 11, 25, 11); $g.DrawLine($pen, 8, 16, 19, 16)
     }
     $pen.Dispose(); $pen2.Dispose(); $brush.Dispose(); $g.Dispose()
     return $bmp
@@ -580,6 +586,8 @@ $tbStart   = Add-Tb 'Start App' 'Start Application - START RESET 0 only, no flas
 Add-Sep
 $tbReset   = Add-Tb 'Firmware Reset' 'Firmware Reset - send !!!RESET!!! over serial to reboot the app (Ctrl+R). Needs the snippet in firmware' { $btnFwReset.PerformClick() }
 $tbTerminal = Add-Tb 'Terminal' 'Terminal - show/hide the serial monitor window' { Toggle-Terminal }
+Add-Sep
+$tbFeedback = Add-Tb 'Feedback' 'Feedback - report a bug or suggest an improvement on GitHub. Opens the issue form in your browser; add a screenshot with Snipping Tool or Win+Shift+S if a picture helps' { Invoke-ReportIssue }
 $tbDevice.Image = New-GreyIcon 'device'
 $tbConnect.Image = New-GreyIcon 'serial'
 $tbLoad.Image = New-GreyIcon 'folder'
@@ -587,6 +595,7 @@ $tbRun.Image = New-GreyIcon 'play'
 $tbStart.Image = New-GreyIcon 'start'
 $tbReset.Image = New-GreyIcon 'reset-arrow'
 $tbTerminal.Image = New-GreyIcon 'terminal'
+$tbFeedback.Image = New-GreyIcon 'speech'
 
 # panels start clear of menu (~24) + toolbar (62)
 $top = 92
@@ -611,12 +620,29 @@ $ops = @(
     @{ n = 'Start Application'; on = $true; tt = 'Start Application - launch the firmware (START RESET 0) once the checked stages pass. Turn it off to leave the chip halted after flashing, exactly like FLIP' }
 )
 $chkOps = @{}
+$chkLeds = @{}
+# Round status LED beside each operation, the way FLIP shows it: grey until the
+# operation has run, green on pass, red on fail.
+function New-Led($yy) {
+    $led = New-Object Windows.Forms.Panel
+    $led.Size = New-Object Drawing.Size(12, 12)
+    $led.Location = New-Object Drawing.Point(216, ($yy + 4))
+    $gp = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $gp.AddEllipse(0, 0, 12, 12)
+    $led.Region = New-Object System.Drawing.Region($gp)
+    $led.BackColor = [System.Drawing.SystemColors]::ControlDark
+    $led.Margin = New-Object Windows.Forms.Padding(0)
+    $gOp.Controls.Add($led)
+    return $led
+}
 $oy = 40
 foreach ($o in $ops) {
     $c = New-Object Windows.Forms.CheckBox; $c.Text = $o.n; $c.Checked = $o.on
-    $c.Location = New-Object Drawing.Point(10, $oy); $c.Size = New-Object Drawing.Size(220, 20); $gOp.Controls.Add($c)
-    $tip.SetToolTip($c, $o.tt + '   [green = last pass, red = last fail]')
-    $chkOps[$o.n] = $c; $oy += 21
+    $c.Location = New-Object Drawing.Point(10, $oy); $c.Size = New-Object Drawing.Size(200, 20); $gOp.Controls.Add($c)
+    $tip.SetToolTip($c, $o.tt + '  [LED goes green on pass, red on fail]')
+    $chkOps[$o.n] = $c
+    $chkLeds[$o.n] = New-Led $oy
+    $oy += 21
 }
 $sepY = ($oy + 3)
 $lblSep = New-Object Windows.Forms.Label; $lblSep.Text = ''
@@ -643,17 +669,33 @@ foreach ($o in $autoItems) {
     $tip.SetToolTip($c, $o.tt)
     $chkAutoFlow[$o.n] = $c; $oy += 21
 }
+# AutoISP belongs with the other automation switches: it is the one that changes
+# what batchisp is actually asked to do. Tooltip carries the wiring caveat.
+$chkAuto = New-Object Windows.Forms.CheckBox; $chkAuto.Text = 'AutoISP'
+$chkAuto.Location = New-Object Drawing.Point(10, $oy); $chkAuto.Size = New-Object Drawing.Size(220, 20)
+$chkAuto.Checked = [bool]$cfg.AutoIsp; $gOp.Controls.Add($chkAuto); $oy += 21
+
+$tip.SetToolTip($chkAuto, 'AutoISP - FLIPpen Hel resets the chip into programming mode for you, instead of you holding PSEN and pressing RESET. batchisp drives the adapter DTR (to RST) and RTS (to PSEN) lines to do it. THIS ONLY WORKS IF YOUR BOARD WIRES THOSE PINS THROUGH. If it does not, AutoISP does nothing at all - leave it OFF and enter programming mode by hand')
 function Get-AutoFlow($name) {
     try { return [bool]$chkAutoFlow[$name].Checked } catch { return $true }
 }
 function Set-OpResult($name, $ok) {
     try {
-        if ($ok) { $chkOps[$name].ForeColor = [Drawing.Color]::FromArgb(0, 140, 0) }
-        else { $chkOps[$name].ForeColor = [Drawing.Color]::FromArgb(190, 0, 0) }
+        $led = $chkLeds[$name]
+        if ($ok) {
+            $chkOps[$name].ForeColor = [Drawing.Color]::FromArgb(0, 140, 0)
+            if ($led -ne $null) { $led.BackColor = [Drawing.Color]::FromArgb(0, 170, 0) }
+        } else {
+            $chkOps[$name].ForeColor = [Drawing.Color]::FromArgb(190, 0, 0)
+            if ($led -ne $null) { $led.BackColor = [Drawing.Color]::FromArgb(210, 0, 0) }
+        }
     } catch {}
 }
 function Clear-OpsResult {
-    foreach ($k in @($chkOps.Keys)) { $chkOps[$k].ForeColor = [System.Drawing.SystemColors]::ControlText }
+    foreach ($k in @($chkOps.Keys)) {
+        $chkOps[$k].ForeColor = [System.Drawing.SystemColors]::ControlText
+        try { $chkLeds[$k].BackColor = [System.Drawing.SystemColors]::ControlDark } catch {}
+    }
 }
 # Buttons sit below both sections, pinned to the bottom of the panel.
 $btnY = 300
@@ -670,6 +712,7 @@ $btnClearOps.Add_Click({
     $chkOps['Program'].Checked = $true; $chkOps['Verify'].Checked = $true
     $chkOps['Start Application'].Checked = $true
     foreach ($k in @($chkAutoFlow.Keys)) { $chkAutoFlow[$k].Checked = $true }
+    $chkAuto.Checked = $true
     Clear-OpsResult; Log 'operations flow cleared - ISP stages and automation back to defaults'
 })
 $tip.SetToolTip($btnClearOps, 'Clear - reset every operation checkbox and every automation checkbox to defaults, and clear the pass/fail colours')
@@ -683,10 +726,8 @@ $tip.SetToolTip($chkTarget, 'Target memory - FLASH is what SDCC hex files use. E
 $chkTarget.Add_SelectedIndexChanged({
     try { $mem = ("$($chkTarget.Text)").Trim(); if ($mem -ne '') { $cfg.TargetMem = $mem; Save-Config $cfg } } catch {}
 })
-$chkAuto = New-Object Windows.Forms.CheckBox; $chkAuto.Text = 'AutoISP'
-$chkAuto.Location = New-Object Drawing.Point(10, ($btnY + 58)); $chkAuto.Size = New-Object Drawing.Size(220, 20)
-$chkAuto.Checked = [bool]$cfg.AutoIsp; $gOp.Controls.Add($chkAuto)
-$tip.SetToolTip($chkAuto, 'AutoISP - batchisp -autoisp <RESET level> <PSEN level>. Sends 1 0: RESET active-high, PSEN active-low. Needs DTR->RST + RTS->PSEN wiring; leave OFF if your board has real ISP wiring')
+
+
 
 # middle: FLASH Buffer Information
 $gBuf = New-Object Windows.Forms.GroupBox; $gBuf.Text = 'FLASH Buffer Information'
@@ -960,8 +1001,7 @@ Move-ToSettings $btnNewest 142 132
 $chkSerialAuto = New-Object Windows.Forms.CheckBox; $chkSerialAuto.Text = 'Serial auto-open on RX data'
 $chkSerialAuto.Location = New-Object Drawing.Point(12, 184); $chkSerialAuto.Size = New-Object Drawing.Size(340, 20)
 $chkSerialAuto.Checked = [bool]$cfg.SerialAuto; $settingsForm.Controls.Add($chkSerialAuto)
-$tip.SetToolTip($chkSerialAuto, 'ON shows the terminal on first RX bytes (Serial: Auto). OFF is fully manual (Serial: Connect).')
-# Task 18: modeless owned Settings. Live-write-through (each control saves on
+$tip.SetToolTip($chkSerialAuto, 'ON shows the terminal on first RX bytes (Serial: Auto). OFF is fully manual (Serial: Connect).')# Task 18: modeless owned Settings. Live-write-through (each control saves on
 # change) + save-on-close, so no OK gate can lose a value. Run-BatchIsp
 # snapshots control values at click time, so an open Settings never desyncs.
 [void]$form.AddOwnedForm($settingsForm)
@@ -1563,6 +1603,16 @@ function Run-BatchIsp($extraOp) {
     Save-Config $cfg
     if ($flashOk) { Add-RecentDevice $txtDev.Text; Update-DeviceMenu; Add-RecentHex $hex; Update-HexInfo; Update-StateNext 'Open Terminal (Ctrl+T)' } else { Update-StateNext 'Check device/port/ISP mode, then Press Run (F5)' }
     if ($wasOpen) { Open-Serial }
+}
+
+function Invoke-ReportIssue {
+    # Opens the GitHub issue form. It does NOT grab a screenshot itself - the
+    # tooltip tells people Snipping Tool or Win+Shift+S is there if a picture
+    # helps, which is friendlier than being handed a file you did not ask for.
+    Start-Process 'https://github.com/AbstractDimensions/flippen-hel/issues/new/choose'
+    $stComm.Text = 'Issue form opened in your browser'
+    Log 'opened the GitHub issue form - describe what happened, add a screenshot if it helps (Snipping Tool or Win+Shift+S)'
+    Update-StateNext 'Describe the problem on the issue page'
 }
 
 # ---------- events ----------

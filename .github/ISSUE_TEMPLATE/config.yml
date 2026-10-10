@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Read the docs first
+    url: https://abstractdimensions.github.io/flippen-hel/
+    about: Covers install, flashing, wiring and the headless CLI. Most questions are answered here.
+  - name: Flashing fails on a fresh board
+    url: https://abstractdimensions.github.io/flippen-hel/wiring
+    about: Usually the board is not in programming mode, or a port is busy. This page lists every likely cause.
+  - name: Firmware reset will not enter programming mode
+    url: https://abstractdimensions.github.io/flippen-hel/firmware-reset
+    about: That is expected - a serial command cannot put the 8051 into its bootloader. Details here.

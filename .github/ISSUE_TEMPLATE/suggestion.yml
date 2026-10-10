@@ -1,0 +1,58 @@
+name: Suggestion
+description: Tell us what would make FLIPpen Hel better
+labels: ["suggestion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Thanks for the idea
+
+        No GitHub knowledge needed. Fill in what you can, skip the rest, and
+        press **Submit new issue** at the bottom.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like FLIPpen Hel to do?
+      description: Write it like you would explain it to a friend. Plain words are fine.
+      placeholder: |
+        Example: "It would be handy if the terminal kept its place when I
+        press Run, instead of jumping to the bottom."
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: What are you trying to get done?
+      description: The task behind the request. This usually helps more than the request itself.
+      placeholder: |
+        Example: "I want to watch the counter restart after a reset without
+        scrolling back up."
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Picture or logs (optional)
+      description: |
+        Drag a screenshot straight into this box, or paste it with Ctrl+V.
+        To take one: press **Win+Shift+S**, drag over the area, then Ctrl+V
+        here. Anything from the FLIPpen Hel window or the Serial monitor helps.
+    validations:
+      required: false
+
+  - type: input
+    id: board
+    attributes:
+      label: Your board (optional)
+      description: Which microcontroller board are you using? e.g. AT89LP51RD2, AT89C51RD2
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        By submitting you agree your suggestion can be used in FLIPpen Hel.
