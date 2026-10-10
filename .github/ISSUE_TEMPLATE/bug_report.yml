@@ -69,6 +69,22 @@ body:
     validations:
       required: false
 
+  - type: dropdown
+    id: area
+    attributes:
+      label: What is this about?
+      description: |
+        FLIPpen Hel was written by an AI, and so was its documentation. If the
+        docs and the app disagree, pick "Documentation is wrong" - that is a
+        bug and explicitly wanted.
+      options:
+        - Flashing or programming
+        - Serial monitor
+        - The app misbehaving
+        - Documentation is wrong or out of date
+        - Wiring / board advice is wrong
+        - Something else
+
   - type: markdown
     attributes:
       value: |

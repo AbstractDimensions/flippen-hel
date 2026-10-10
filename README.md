@@ -61,3 +61,16 @@ Full docs are published at
 
 MIT, except the bundled `batchisp.exe` and `PartDescriptionFiles/`, which remain
 Atmel/Microchip software covered by their own licence.
+
+
+---
+
+> **This project was entirely vibe coded, and these docs were written by the same AI.**
+> Everything here - the code, the documentation, the wiring advice - came out of
+> a conversation, with no tests and no review by an experienced Windows
+> developer. The docs may be wrong. Nothing here was confirmed against a real
+> AT89LP51RD2 board.
+>
+> **Found a discrepancy in the docs? Report it as a bug.** Use the **Feedback**
+> button in the app or the
+> [bug report form](https://github.com/AbstractDimensions/flippen-hel/issues/new/choose).

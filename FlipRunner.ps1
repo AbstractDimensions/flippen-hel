@@ -729,6 +729,9 @@ $chkTarget.Add_SelectedIndexChanged({
 
 
 
+
+
+
 # middle: FLASH Buffer Information
 $gBuf = New-Object Windows.Forms.GroupBox; $gBuf.Text = 'FLASH Buffer Information'
 $gBuf.Location = New-Object Drawing.Point(258, $top); $gBuf.Size = New-Object Drawing.Size($PW_MID, 380)
@@ -1707,6 +1710,10 @@ $form.Add_KeyDown({
 
 $form.Add_FormClosing({ Close-Serial; try { $timer.Stop() } catch {}; try { $pollTimer.Stop() } catch {} })
 
+
+
+
+
 Refresh-Ports
 # Restore saved automation choices (and keep them consistent with SerialAuto)
 try {
@@ -1725,5 +1732,49 @@ Update-HexInfo
 if (($cmbHex.Text -ne '') -and (Test-Path $cmbHex.Text)) { Update-StateNext 'Press Run (F5)' } else { Update-StateNext 'Pick a valid hex (Ctrl+O)' }
 if ($hexFallbackNotice) { Log $hexFallbackNotice }
 $timer.Start()
+
+# ---------- hover tooltips ----------
+# The ToolTip component's own hover detection is unreliable in this app, so
+# tooltips are driven by hand: MouseEnter starts a short delay, MouseLeave
+# cancels it. Same $tip component and the same text already attached by every
+# SetToolTip call, so nothing at the call sites changes.
+$hoverTimer = New-Object Windows.Forms.Timer
+$hoverTimer.Interval = 400
+$script:hoverCtl = $null
+$script:hoverText = ''
+$hoverTimer.Add_Tick({
+    $hoverTimer.Stop()
+    if ($script:hoverCtl -ne $null) {
+        try { $tip.Show($script:hoverText, $script:hoverCtl, 10, ($script:hoverCtl.Height + 2)) } catch {}
+    }
+})
+function Install-HoverTooltips($parent) {
+    if ($parent -eq $null) { return }
+    foreach ($c in $parent.Controls) {
+        $tt = ''
+        try { $tt = $tip.GetToolTip($c) } catch {}
+        if ($tt -ne '') {
+            $cc = $c
+            $cc.Add_MouseEnter(({
+                param($sender, $e)
+                $script:hoverCtl = $sender
+                $script:hoverText = $tip.GetToolTip($sender)
+                try { $hoverTimer.Start() } catch {}
+            }).GetNewClosure())
+            $cc.Add_MouseLeave(({
+                param($sender, $e)
+                try { $hoverTimer.Stop() } catch {}
+                try { $tip.Hide($sender) } catch {}
+                $script:hoverCtl = $null
+            }).GetNewClosure())
+        }
+        try { if ($c.HasChildren) { Install-HoverTooltips $c } } catch {}
+    }
+}
+Install-HoverTooltips $form
+foreach ($__owned in @($settingsForm, $termForm, $helpForm, $progForm)) {
+    try { if ($__owned -ne $null) { Install-HoverTooltips $__owned } } catch {}
+}
+
 [void]$form.ShowDialog()
 
