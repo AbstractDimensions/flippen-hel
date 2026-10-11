@@ -69,6 +69,10 @@ Nothing to install. The release carries its own copy of `batchisp.exe` and the
 Atmel device part files, so **Atmel FLIP is not required**. If you do have Flip
 installed, that copy gets used instead.
 
+**Coming from Atmel FLIP?** See the
+[Atmel FLIP alternative page](atmel-flip-alternative) — what it keeps from FLIP,
+what it adds, and what it does not do.
+
 Then:
 
 ```powershell
