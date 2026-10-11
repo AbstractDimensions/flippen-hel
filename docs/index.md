@@ -1,9 +1,9 @@
 ---
-title: Home
+title: "FLIPpen Hel - Atmel FLIP alternative"
 nav_order: 0
 ---
 
-# How this project was made
+## How this project was made
 
 **Read this first.**
 
