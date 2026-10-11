@@ -1,7 +1,19 @@
 ---
-title: "FLIPpen Hel - Atmel FLIP alternative"
+title: "Atmel FLIP, but better"
 nav_order: 0
 ---
+
+# Atmel FLIP, but better
+
+**FLIPpen Hel** *[FLIPping hell]* — a flip-flop named Fillip.
+
+*Want Atmel FLIP was 'n groot FLOP.* **[Because Atmel FLIP is a big FLOP.]**
+
+A zero-install replacement for Atmel FLIP, built for **AT89LP51RD2** and
+**AT89C51RD2** 8051 development with SDCC.
+
+No Python. No Node. No drivers to hunt for. PowerShell and .NET WinForms, and
+both of those are already on your Windows machine.
 
 ## How this project was made
 

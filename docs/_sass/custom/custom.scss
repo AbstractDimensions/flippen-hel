@@ -20,3 +20,19 @@
     height: 64px;
   }
 }
+
+// The landing-page claim. It is the whole pitch in seven words, so it gets to
+// shout: bigger than the default h1 and in the Atmel blue.
+.main-content > main > h1:first-child {
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #82afff;
+  letter-spacing: -0.01em;
+}
+
+// The small-bracket glosses under the name and subtext.
+.main-content > main > h1:first-child + p em {
+  color: #b8b8c0;
+  font-style: italic;
+}

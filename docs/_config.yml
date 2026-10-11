@@ -1,4 +1,4 @@
-title: "FLIPpen Hel - Atmel FLIP alternative for AT89LP51RD2"
+title: "FLIPpen Hel - an Atmel FLIP alternative that fits on one screen"
 description: "A zero-install alternative to Atmel FLIP for AT89LP51RD2 and AT89C51RD2 8051 development with SDCC. One-keypress flash, built-in serial monitor, firmware reset over UART, and a headless CLI."
 url: "https://abstractdimensions.github.io"
 baseurl: "/flippen-hel"
