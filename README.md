@@ -4,8 +4,8 @@
 
 *Want Atmel FLIP was 'n groot FLOP.* **[Because Atmel FLIP is a big FLOP.]**
 
-A zero-install replacement for Atmel FLIP, built for AT89LP51RD2 / AT89C51RD2
-8051 development with SDCC.
+A zero-install replacement for Atmel FLIP for **AT89C51RD2** and 80 other parts
+batchisp can reach over RS232. Written for SDCC 8051 work.
 
 No Flip. No Python. No Node. No drivers to hunt for. PowerShell and .NET
 WinForms, and both of those are already on your Windows machine.

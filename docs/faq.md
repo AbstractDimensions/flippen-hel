@@ -13,10 +13,13 @@ and FLIPpen Hel will find the binary.
 
 ### Why is my device AT89C51RD2 and not AT89LP51RD2?
 
-Flip 3.4.7 ships a part file for `AT89C51RD2` and does not ship one for
-`AT89LP51RD2`. Since FLIPpen Hel passes your device straight to `batchisp`, it
-defaults to the one Flip actually knows. If your build expects the LP, type it
-into Settings anyway; the log will tell you quickly whether the part file exists.
+**Because `AT89LP51RD2` is not a device batchisp knows.** Verified directly:
+`batchisp -device AT89LP51RD2` returns *"Device does not exist"* — Flip 3.4.7 ships
+`AT89C51RD2.xml` and no part file for the LP.
+
+The LP boots through the same bootloader over the same serial protocol, so
+**select `AT89C51RD2` and flash the LP with it.** That is the app's default. Full
+tested device list on [Supported devices](supported-devices).
 
 ### My COM port list is empty
 

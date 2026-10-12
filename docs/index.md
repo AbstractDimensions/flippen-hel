@@ -9,8 +9,8 @@ nav_order: 0
 
 *Want Atmel FLIP was 'n groot FLOP.* **[Because Atmel FLIP is a big FLOP.]**
 
-A zero-install replacement for Atmel FLIP, built for **AT89LP51RD2** and
-**AT89C51RD2** 8051 development with SDCC.
+A zero-install replacement for Atmel FLIP for **AT89C51RD2** and the other 80 parts
+atchisp can reach over RS232. Written for SDCC 8051 work.
 
 No Python. No Node. No drivers to hunt for. PowerShell and .NET WinForms, and
 both of those are already on your Windows machine.
@@ -50,6 +50,12 @@ unreviewed tool than a deliberate choice. Reports are genuinely useful and read.
 
 **AT89C51RD2** 8051 development with SDCC.
 
+> **A note on the chip in the name.** FLIPpen Hel is named after the AT89LP51RD2,
+> but `batchisp -device AT89LP51RD2` returns *"Device does not exist"* - Flip 3.4.7
+> ships no part file for it. The LP boots through the same bootloader, so you
+> select **`AT89C51RD2`** and flash the LP with that. It is the same silicon family
+> and the same serial protocol, but the device string is the older part's.
+
 No Python. No Node. No drivers to hunt for. PowerShell and .NET WinForms, and
 both of those are already on your Windows machine.
 
@@ -86,6 +92,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -STA -File FlipRunner.ps1
 ## Then
 
 **[Getting started](getting-started)** - what to install and how to flash.
+
+**[Supported devices](supported-devices)** - the 81 parts this actually reaches, tested against batchisp.
 
 ## What you get
 
