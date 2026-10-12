@@ -465,6 +465,7 @@ function Set-AppIcon($f) {
 }
 
 $tip = New-Object Windows.Forms.ToolTip
+$script:tip = $tip
 $tip.AutoPopDelay = 8000; $tip.InitialDelay = 400; $tip.ReshowDelay = 100
 $tip.ShowAlways = $true
 
@@ -617,7 +618,7 @@ $tbConnect = Add-Tb 'Serial: Auto' 'Serial: Auto - click connects (if needed) + 
 Add-Sep
 $tbLoad    = Add-Tb 'Load HEX' 'Load HEX - pick a hex file to flash (Ctrl+O)' { Invoke-BrowseHex }
 Add-Sep
-$tbRun     = Add-Tb 'Run' 'Run - full flow: erase + blankcheck + program + verify + start (F5). Opens progress popup' { $btnRun.PerformClick() }
+$tbRun     = Add-Tb 'Run' 'Run - full flow: erase + blankcheck + program + verify + start (F5). Opens progress popup' { if (-not $script:flashRunning) { $btnRun.PerformClick() } }
 $tbStart   = Add-Tb 'Start App' 'Start Application - START RESET 0 only, no flash (F6)' { $btnStartApp.PerformClick() }
 Add-Sep
 $tbReset   = Add-Tb 'Firmware Reset' 'Firmware Reset - send !!!RESET!!! over serial to reboot the app (Ctrl+R). Needs the snippet in firmware' { $btnFwReset.PerformClick() }
@@ -1346,6 +1347,8 @@ function Log-Prog($s) { $txtProgLog.AppendText($s + "`r`n"); $txtProgLog.Selecti
 
 # Staged flash: runs Erase / BlankCheck / Program / Verify / Start as separate batchisp calls
 function Run-StagedFlash {
+    if ($script:flashRunning) { Log 'flash already running - ignoring'; return }
+    $script:flashRunning = $true
     $hex = ("$($cmbHex.Text)").Trim('" ').Trim()
     $snapDev = ("$($txtDev.Text)").Trim()
     $snapPort = ("$($cmbPort.Text)").Trim()
@@ -1416,6 +1419,7 @@ function Run-StagedFlash {
         Log-Prog ("Port $tryPort failed -- trying next")
     }
     Hide-ProgPopup
+    $script:flashRunning = $false
     $btnRun.Enabled = $true; $btnStartApp.Enabled = $true
     $cfg.HexFile = $hex; $cfg.Device = $snapDev; $cfg.Port = $snapPort
     $cfg.IspBaud = $snapIsp; $cfg.MonBaud = $txtMonBaud.Text; $cfg.AutoIsp = $chkAuto.Checked
@@ -1761,7 +1765,7 @@ $pollTimer.Add_Tick({
 })
 
 $form.Add_KeyDown({
-    if ($_.KeyCode -eq 'F5') { $btnRun.PerformClick(); $_.Handled = $true }
+    if ($_.KeyCode -eq 'F5') { if (-not $script:flashRunning) { $btnRun.PerformClick() }; $_.Handled = $true }
     elseif ($_.KeyCode -eq 'F6') { $btnStartApp.PerformClick(); $_.Handled = $true }
     elseif ($_.Control -and $_.KeyCode -eq 'O') { Invoke-BrowseHex; $_.Handled = $true }
     elseif ($_.Control -and $_.KeyCode -eq 'S') { Save-BufferContents; $_.Handled = $true }
@@ -1807,7 +1811,7 @@ $script:hoverCtl = $null
 $script:hoverText = ''
 $hoverTimer.Add_Tick({
     $hoverTimer.Stop()
-    if ($script:hoverCtl -ne $null) {
+    if ($script:hoverCtl -ne $null -and $script:tip -ne $null) {
         try { $script:tip.Show($script:hoverText, $script:hoverCtl, 10, ($script:hoverCtl.Height + 2)) } catch {}
     }
 })
@@ -1815,19 +1819,19 @@ function Install-HoverTooltips($parent) {
     if ($parent -eq $null) { return }
     foreach ($c in $parent.Controls) {
         $tt = ''
-        try { $tt = $tip.GetToolTip($c) } catch {}
+        try { $tt = $script:tip.GetToolTip($c) } catch {}
         if ($tt -ne '') {
             $cc = $c
             $cc.Add_MouseEnter(({
                 param($sender, $e)
                 $script:hoverCtl = $sender
-                $script:hoverText = $script:tip.GetToolTip($sender)
-                try { $hoverTimer.Start() } catch {}
+                try { $script:hoverText = $script:tip.GetToolTip($sender) } catch { $script:hoverText = '' }
+                if ($script:hoverText -ne '') { try { $hoverTimer.Start() } catch {} }
             }).GetNewClosure())
             $cc.Add_MouseLeave(({
                 param($sender, $e)
                 try { $hoverTimer.Stop() } catch {}
-                try { $script:tip.Hide($sender) } catch {}
+                try { if ($script:tip -ne $null) { $script:tip.Hide($sender) } } catch {}
                 $script:hoverCtl = $null
             }).GetNewClosure())
         }
