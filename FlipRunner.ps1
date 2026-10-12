@@ -421,12 +421,28 @@ if ($Cli) {
 }
 
 # ---------- form (Flip lookalike) ----------
+# The exe icon. Setting $form.Icon is what puts it in the title bar AND on the
+# taskbar button while the app is running - without it, Windows falls back to
+# the PowerShell host icon. Sits next to the script so the zip is self-contained.
+$script:AppIconPath = Join-Path $PSScriptRoot 'FLIPpen Hel.ico'
 $form = New-Object Windows.Forms.Form
 $form.Text = 'FLIPpen Hel'
 $form.Size = New-Object Drawing.Size(900, 560)
 $form.StartPosition = 'CenterScreen'
 $form.KeyPreview = $true
 $form.BackColor = [Drawing.SystemColors]::Control
+$form.ShowInTaskbar = $true
+if (Test-Path $script:AppIconPath) {
+    try {
+        $form.Icon = New-Object Drawing.Icon($script:AppIconPath)
+        $form.ShowIcon = $true
+    } catch {}
+}
+# Child windows reuse the same icon so every window in the app matches.
+function Set-AppIcon($f) {
+    if ($f -eq $null) { return }
+    try { if (Test-Path $script:AppIconPath) { $f.Icon = New-Object Drawing.Icon($script:AppIconPath); $f.ShowIcon = $true } } catch {}
+}
 
 $tip = New-Object Windows.Forms.ToolTip
 $tip.AutoPopDelay = 8000; $tip.InitialDelay = 400; $tip.ReshowDelay = 100
@@ -967,6 +983,7 @@ $settingsForm.FormBorderStyle = 'FixedDialog'
 $settingsForm.MaximizeBox = $false
 $settingsForm.MinimizeBox = $false
 $settingsForm.ShowInTaskbar = $false
+Set-AppIcon $settingsForm
 $lblDevName = New-Object Windows.Forms.Label; $lblDevName.Text = 'Device'; $lblDevName.Location = New-Object Drawing.Point(12, 76); $lblDevName.Size = New-Object Drawing.Size(45, 20); $settingsForm.Controls.Add($lblDevName)
 $tip.SetToolTip($lblDevName, 'batchisp -device name (e.g. AT89C51RD2)')
 $btnSettingsClose = New-Object Windows.Forms.Button; $btnSettingsClose.Text = 'Close'
@@ -1074,6 +1091,7 @@ $termForm.Size = New-Object Drawing.Size(640, 400)
 $termForm.StartPosition = 'CenterParent'
 $termForm.KeyPreview = $true
 $termForm.ShowInTaskbar = $true
+Set-AppIcon $termForm
 [void]$form.AddOwnedForm($termForm)
 function Update-TermTitle {
     if ($script:port -ne $null -and $script:port.IsOpen) {
@@ -1285,6 +1303,7 @@ $progForm.FormBorderStyle = 'FixedDialog'
 $progForm.MaximizeBox = $false
 $progForm.MinimizeBox = $false
 $progForm.ShowInTaskbar = $false
+Set-AppIcon $progForm
 [void]$form.AddOwnedForm($progForm)
 $progOverall = New-Object Windows.Forms.ProgressBar; $progOverall.Location = New-Object Drawing.Point(12, 12); $progOverall.Size = New-Object Drawing.Size(440, 24); $progForm.Controls.Add($progOverall)
 $tip.SetToolTip($progOverall, 'Overall progress across all ISP stages')

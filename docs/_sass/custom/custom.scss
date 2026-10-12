@@ -1,12 +1,18 @@
 // FLIPpen Hel - custom overrides.
 //
-// Placeholder logo: Flip's own splash swoosh, recoloured light-blue for the
-// dark theme and put on a transparent background. Replace this file's image
-// (docs/assets/img/logo.png) with Fillip when he arrives.
+// The name is set in the app's own font rather than an image. FLIPpen Hel
+// renders its in-app logo as Arial Black, bold, italic at 26pt on a label, so
+// the site uses the same family. Arial Black ships with Windows and macOS;
+// Archivo Black is the fallback for everyone else.
 
-// Site logo: Atmel's own Flip app icon (32x32 source, upscaled 4x with
-// nearest-neighbour so the pixel edges stay deliberate rather than blurry).
-// Square, so the sidebar header is sized to match rather than to a banner.
+.site-title,
+.site-logo {
+  font-family: 'Arial Black', 'Archivo Black', 'Arial Bold', sans-serif;
+  font-style: italic;
+  letter-spacing: -0.01em;
+}
+
+// The icon beside the name in the sidebar.
 .site-logo {
   background-image: url('/flippen-hel/assets/img/logo.png');
   background-size: contain;
