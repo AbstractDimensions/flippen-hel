@@ -1,6 +1,6 @@
 # FLIPpen Hel
 
-**[FLIPping hell]** *— the name is a pun: FLIP in hell.*
+**[FLIPping hell]** *— Afrikaans-flavoured.*
 
 *Want Atmel FLIP was 'n groot FLOP.* **[Because Atmel FLIP is a big FLOP.]**
 
@@ -87,7 +87,10 @@ Where the docs and the tool disagree, the tool is probably right, and a report
 would be genuinely useful. Hit **Feedback** in the app or open a
 [bug report](https://github.com/AbstractDimensions/flippen-hel/issues/new/choose).
 
-> **Translation, since the name needs one:** the Afrikaans pun is *"Want Atmel
-> FLIP was 'n groot FLOP"* — roughly *"because Atmel FLIP is a big FLOP."*
+> **Translation, since the name needs one:** *"Want Atmel FLIP was 'n groot
+> FLOP"* — **\[Because Atmel FLIP is a big FLOP.\]**
+>
+> I have not found a grounded etymology for the name itself, so it is left
+> untranslated rather than guessed at.
 
 ## Install and run

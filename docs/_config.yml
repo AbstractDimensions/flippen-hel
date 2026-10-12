@@ -1,5 +1,5 @@
-title: "FLIPpen Hel - Atmel FLIP, automated"
-description: "Atmel FLIP but more automated - a zero-install replacement for flashing AT89LP51RD2 and 120 other parts. One-click hex installs, built-in serial monitor, firmware reset over UART, and a headless CLI."
+title: "FLIPpen Hel - Atmel FLIP alternative"
+description: "A zero-install Atmel FLIP alternative for AT89LP51RD2 and 120 other parts. One-click hex installs, built-in serial monitor, firmware reset over UART, and a headless CLI."
 url: "https://abstractdimensions.github.io"
 baseurl: "/flippen-hel"
 remote_theme: just-the-docs/just-the-docs

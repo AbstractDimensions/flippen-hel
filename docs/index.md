@@ -1,9 +1,9 @@
 ---
-title: "Atmel FLIP, but more automated"
+title: "Atmel FLIP, but better"
 nav_order: 0
 ---
 
-# Atmel FLIP, but more automated
+# Atmel FLIP, but better
 
 **FLIPpen Hel** *[FLIPping hell]* - a flip-flop named Fillip.
 
@@ -109,5 +109,6 @@ a window.
 
 ## The name
 
-FLIPpen Hel is Afrikaans-flavoured for "FLIP in Excel", or if you prefer,
-"a giant cheat sheet instead of FLIP". **Fillip** is the flip-flop.
+FLIPpen Hel **\[FLIPping hell\]** is Afrikaans-flavoured, and the Afrikaans
+subtitle translates to **\[Because Atmel FLIP is a big FLOP.\]** The mascot is
+**Fillip**, a flip-flop.
