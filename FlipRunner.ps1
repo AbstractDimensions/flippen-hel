@@ -333,13 +333,21 @@ if (Test-Path $ConfigFile) {
 }
 # Auto-detect device: guess the 8051 from your own code + docs. Switch it off
 # and this never runs - you pick the device like in FLIP.
+# Moved to form Shown event so UI appears first (recursive file scan is slow).
+$script:PendingDeviceGuess = $false
 if (-not $storedDevice) {
     $doGuess = $true
     try { $doGuess = Get-AutoFlow 'Auto-detect device' } catch {}
-    if ($doGuess) {
-        $guessed = Invoke-DeviceGuess
-        if ($guessed -ne $null -and $guessed -ne '') { $cfg.Device = $guessed }
+    if ($doGuess) { $script:PendingDeviceGuess = $true }
+}
+# CLI-compatible batchisp runner (no WinForms DoEvents, just WaitForExit)
+function Invoke-BatchIspCli($argString, [int]$TimeoutSec = 180) {
+    $proc = Start-Process -FilePath $BatchIsp -ArgumentList $argString -NoNewWindow -PassThru -ErrorAction Stop
+    if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
+        try { $proc.Kill() } catch {}
+        return $null
     }
+    return $proc
 }
 
 # ---------- headless CLI for AI/automation (zero windows; before any form) ----------
@@ -393,7 +401,7 @@ if ($Cli) {
             $cliArgs = "-device $cliDev -hardware RS232 -port $tryPort -baudrate $cliIsp $cliAuto -operation $cliOp"
             Write-Output ("FLIPHEL TRY ${tryPort}: batchisp.exe $cliArgs")
             try {
-                $cliP = Invoke-BatchIsp $cliArgs
+                $cliP = Invoke-BatchIspCli $cliArgs
             } catch { Write-Output ('FLIPHEL FAIL batchisp launch failed on ' + $tryPort + ': ' + $_.Exception.Message); continue }
             if ($cliP -eq $null) { Write-Output ('FLIPHEL FAIL batchisp timed out on ' + $tryPort + ' - a modal dialog may be blocking it (usually a missing Atmel DLL)'); continue }
             if ($cliP.ExitCode -eq 0) {
@@ -1842,6 +1850,15 @@ Install-HoverTooltips $form
 foreach ($__owned in @($settingsForm, $termForm, $helpForm, $progForm)) {
     try { if ($__owned -ne $null) { Install-HoverTooltips $__owned } } catch {}
 }
+
+# Run pending device guess after UI is up (recursive scan is slow)
+$form.Add_Shown({
+    if ($script:PendingDeviceGuess) {
+        $guessed = Invoke-DeviceGuess
+        if ($guessed -ne $null -and $guessed -ne '') { $txtDev.Text = $guessed; Log ('auto-detected device: ' + $guessed) }
+        $script:PendingDeviceGuess = $false
+    }
+})
 
 [void]$form.ShowDialog()
 
