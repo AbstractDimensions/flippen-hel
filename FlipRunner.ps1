@@ -374,8 +374,9 @@ if ($Cli) {
             $cliArgs = "-device $cliDev -hardware RS232 -port $tryPort -baudrate $cliIsp $cliAuto -operation $cliOp"
             Write-Output ("FLIPHEL TRY ${tryPort}: batchisp.exe $cliArgs")
             try {
-                $cliP = Start-Process -FilePath $BatchIsp -ArgumentList $cliArgs -NoNewWindow -Wait -PassThru
+                $cliP = Invoke-BatchIsp $cliArgs
             } catch { Write-Output ('FLIPHEL FAIL batchisp launch failed on ' + $tryPort + ': ' + $_.Exception.Message); continue }
+            if ($cliP -eq $null) { Write-Output ('FLIPHEL FAIL batchisp timed out on ' + $tryPort + ' - a modal dialog may be blocking it (usually a missing Atmel DLL)'); continue }
             if ($cliP.ExitCode -eq 0) {
                 $cliFlashOk = $true
                 $cliPort = $tryPort
@@ -1375,7 +1376,8 @@ function Run-StagedFlash {
             $args = "-device $snapDev -hardware RS232 -port $tryPort -baudrate $snapIsp $auto -operation $($st.Op)"
             $stOk = $true
             try {
-                $p = Start-Process -FilePath $BatchIsp -ArgumentList $args -NoNewWindow -Wait -PassThru
+                $p = Invoke-BatchIsp $args
+                if ($p -eq $null) { Log-Prog ('batchisp timed out on ' + $tryPort + ' - a modal dialog may be blocking it. Trying next port'); $portOk = $false; break }
                 $progStage.Value = 100
                 if ($p.ExitCode -ne 0) { Log-Prog ("FAIL exit $($p.ExitCode) on $tryPort"); $stOk = $false }
                 else { Log-Prog "OK" }
@@ -1485,7 +1487,9 @@ function Invoke-OpOnPorts($op, $label) {
     foreach ($tryPort in $list) {
         Log ("$label on ${tryPort}: batchisp.exe " + (Get-BatchArgs $tryPort $op))
         try {
-            $p = Start-Process -FilePath $BatchIsp -ArgumentList (Get-BatchArgs $tryPort $op) -NoNewWindow -Wait -PassThru
+            $p = Invoke-BatchIsp (Get-BatchArgs $tryPort $op)
+            if ($p -eq $null) { Log ($label + ' timed out on ' + $tryPort + ' - a modal dialog may be blocking it (usually a missing Atmel DLL). Trying next port'); continue }
+            if ($p -eq $null) { Log ($label + ' timed out on ' + $tryPort + ' - a modal dialog may be blocking it. Trying next port'); continue }
         } catch { Log ("$label launch failed on ${tryPort}: " + $_.Exception.Message); continue }
         if ($p.ExitCode -eq 0) {
             Log ("$label OK on ${tryPort}")
@@ -1497,6 +1501,19 @@ function Invoke-OpOnPorts($op, $label) {
     Log ("$label failed on all " + $list.Count + " port(s)")
     return ''
 }
+# Runs batchisp with a timeout. A missing Atmel DLL makes batchisp raise a
+# MODAL message box, and -Wait with no timeout would hang the app until someone
+# clicked OK - which is exactly the "AtLibUsbDfu.dll not found" trap. Timing out
+# and killing the process makes the dialog go away and lets the app report.
+function Invoke-BatchIsp($argString, [int]$TimeoutSec = 180) {
+    $proc = Start-Process -FilePath $BatchIsp -ArgumentList $argString -NoNewWindow -PassThru -ErrorAction Stop
+    if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
+        try { $proc.Kill() } catch {}
+        return $null   # timed out
+    }
+    return $proc
+}
+
 function Device-Erase($blocks) {
     Close-Serial; Start-Sleep -Milliseconds 150
     $op = 'ERASE F'
@@ -1606,7 +1623,8 @@ function Run-BatchIsp($extraOp) {
         $args = "-device $snapDev -hardware RS232 -port $tryPort -baudrate $snapIsp $auto -operation $extraOp"
         Log ("running on ${tryPort}: batchisp.exe " + $args)
         try {
-            $p = Start-Process -FilePath $BatchIsp -ArgumentList $args -NoNewWindow -Wait -PassThru
+            $p = Invoke-BatchIsp $args
+            if ($p -eq $null) { Log ("batchisp timed out on $tryPort - a modal dialog may be blocking it (usually a missing Atmel DLL). Trying next port"); continue }
             if ($p.ExitCode -eq 0) {
                 $flashOk = $true
                 $snapPort = $tryPort  # remember working port
