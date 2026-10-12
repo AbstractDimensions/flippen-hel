@@ -4,20 +4,22 @@
 // dark theme and put on a transparent background. Replace this file's image
 // (docs/assets/img/logo.png) with Fillip when he arrives.
 
+// Site logo: Atmel's own Flip app icon (32x32 source, upscaled 4x with
+// nearest-neighbour so the pixel edges stay deliberate rather than blurry).
+// Square, so the sidebar header is sized to match rather than to a banner.
 .site-logo {
   background-image: url('/flippen-hel/assets/img/logo.png');
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
-  width: 220px;
-  height: 100px;
+  width: 132px;
+  height: 132px;
 }
 
-// Keep the sidebar header from swelling on narrow screens.
 @media (max-width: 800px) {
   .site-logo {
-    width: 140px;
-    height: 64px;
+    width: 72px;
+    height: 72px;
   }
 }
 

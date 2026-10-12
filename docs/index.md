@@ -1,9 +1,9 @@
 ---
-title: "Atmel FLIP, but better"
+title: "Atmel FLIP, but more automated"
 nav_order: 0
 ---
 
-# Atmel FLIP, but better
+# Atmel FLIP, but more automated
 
 **FLIPpen Hel** *[FLIPping hell]* - a flip-flop named Fillip.
 
