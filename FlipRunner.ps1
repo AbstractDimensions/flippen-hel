@@ -102,13 +102,32 @@ function Load-Config {
         SerialAuto = $true; TargetMem = 'FLASH'
     }
     if (Test-Path $ConfigFile) {
-        try { foreach ($kv in (Get-Content $ConfigFile -Raw | ConvertFrom-Json).PSObject.Properties) { $cfg[$kv.Name] = $kv.Value } } catch {}
+        # Read with FileShare.ReadWrite so a second instance (or a stuck one)
+        # cannot wedge the app: a locked config must degrade to defaults, not crash.
+        try {
+            $json = [System.IO.File]::ReadAllText($ConfigFile, [System.Text.Encoding]::UTF8)
+            foreach ($kv in (ConvertFrom-Json $json).PSObject.Properties) { $cfg[$kv.Name] = $kv.Value }
+        } catch { $script:ConfigReadFailed = $true }
     }
     if ($cfg.CollapsedSig -eq $null) { $cfg.CollapsedSig = $true }
     if ($cfg.SerialAuto -eq $null) { $cfg.SerialAuto = $true }
     return $cfg
 }
-function Save-Config($cfg) { ($cfg | ConvertTo-Json) | Set-Content $ConfigFile -Encoding UTF8 }
+function Save-Config($cfg) {
+    # Write to a temp file then move atomically, with a short retry loop.
+    # A second instance holding the old file must not wedge or crash this one.
+    $tmp = "$ConfigFile.tmp"
+    for ($i = 0; $i -lt 5; $i++) {
+        try {
+            [System.IO.File]::WriteAllText($tmp, ($cfg | ConvertTo-Json), (New-Object System.Text.UTF8Encoding($false)))
+            if (Test-Path $ConfigFile) { Remove-Item $ConfigFile -Force -ErrorAction Stop }
+            Move-Item $tmp $ConfigFile -Force -ErrorAction Stop
+            return
+        } catch {
+            Start-Sleep -Milliseconds 150
+        }
+    }
+}
 function Find-NewestHex($root) {
     if (-not (Test-Path $root)) { return $null }
     Get-ChildItem $root -Recurse -Include *.hex -ErrorAction SilentlyContinue |
@@ -285,7 +304,7 @@ function Update-DeviceMenu {
             $devName = "$d"
             $item = New-Object Windows.Forms.ToolStripMenuItem; $item.Text = $devName
             $item.ToolTipText = ("Use " + $devName + " as device")
-            $item.Add_Click(({ $txtDev.Text = $devName; $tip.SetToolTip($txtDev, ('device: ' + $devName + ' (batchisp -device name)')); Update-StateNext 'Press Run (F5)'; Log ('device: ' + $devName) }.GetNewClosure()))
+            $item.Add_Click(({ $txtDev.Text = $devName; $script:tip.SetToolTip($txtDev, ('device: ' + $devName + ' (batchisp -device name)')); Update-StateNext 'Press Run (F5)'; Log ('device: ' + $devName) }.GetNewClosure()))
             [void]$deviceMenu.DropDownItems.Add($item)
         }
         $sep = New-Object Windows.Forms.ToolStripSeparator; [void]$deviceMenu.DropDownItems.Add($sep)
@@ -893,7 +912,7 @@ function Show-DevicePicker {
     $tip.SetToolTip($btnOK, 'OK - use the selected device and close this window')
     $btnCancel = New-Object Windows.Forms.Button; $btnCancel.Text = 'Cancel'; $btnCancel.Location = New-Object Drawing.Point(260, 340); $btnCancel.Size = New-Object Drawing.Size(70, 26); $pickForm.Controls.Add($btnCancel)
     $tip.SetToolTip($btnCancel, 'Cancel - close without changing the device')
-    $btnOK.Add_Click(({ if ($lb.SelectedItem) { $txtDev.Text = $lb.SelectedItem; $tip.SetToolTip($txtDev, ('device: ' + $lb.SelectedItem + ' (batchisp -device name)')); Update-StateNext 'Press Run (F5)'; Log ('device: ' + $lb.SelectedItem) }; $pickForm.Close() }).GetNewClosure())
+    $btnOK.Add_Click(({ if ($lb.SelectedItem) { $txtDev.Text = $lb.SelectedItem; $script:tip.SetToolTip($txtDev, ('device: ' + $lb.SelectedItem + ' (batchisp -device name)')); Update-StateNext 'Press Run (F5)'; Log ('device: ' + $lb.SelectedItem) }; $pickForm.Close() }).GetNewClosure())
     $btnCancel.Add_Click(({ $pickForm.Close() }).GetNewClosure())
     $lb.Add_DoubleClick(({ if ($lb.SelectedItem) { $btnOK.PerformClick() } }).GetNewClosure())
     $pickForm.Show($form)
@@ -1489,7 +1508,6 @@ function Invoke-OpOnPorts($op, $label) {
         try {
             $p = Invoke-BatchIsp (Get-BatchArgs $tryPort $op)
             if ($p -eq $null) { Log ($label + ' timed out on ' + $tryPort + ' - a modal dialog may be blocking it (usually a missing Atmel DLL). Trying next port'); continue }
-            if ($p -eq $null) { Log ($label + ' timed out on ' + $tryPort + ' - a modal dialog may be blocking it. Trying next port'); continue }
         } catch { Log ("$label launch failed on ${tryPort}: " + $_.Exception.Message); continue }
         if ($p.ExitCode -eq 0) {
             Log ("$label OK on ${tryPort}")
@@ -1507,7 +1525,15 @@ function Invoke-OpOnPorts($op, $label) {
 # and killing the process makes the dialog go away and lets the app report.
 function Invoke-BatchIsp($argString, [int]$TimeoutSec = 180) {
     $proc = Start-Process -FilePath $BatchIsp -ArgumentList $argString -NoNewWindow -PassThru -ErrorAction Stop
-    if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
+    # Poll instead of WaitForExit: blocking the UI thread freezes the whole app,
+    # so the progress popup never paints and it looks hung. DoEvents keeps the
+    # form alive while batchisp runs.
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    while (-not $proc.HasExited -and (Get-Date) -lt $deadline) {
+        [System.Windows.Forms.Application]::DoEvents()
+        Start-Sleep -Milliseconds 50
+    }
+    if (-not $proc.HasExited) {
         try { $proc.Kill() } catch {}
         return $null   # timed out
     }
@@ -1782,7 +1808,7 @@ $script:hoverText = ''
 $hoverTimer.Add_Tick({
     $hoverTimer.Stop()
     if ($script:hoverCtl -ne $null) {
-        try { $tip.Show($script:hoverText, $script:hoverCtl, 10, ($script:hoverCtl.Height + 2)) } catch {}
+        try { $script:tip.Show($script:hoverText, $script:hoverCtl, 10, ($script:hoverCtl.Height + 2)) } catch {}
     }
 })
 function Install-HoverTooltips($parent) {
@@ -1795,13 +1821,13 @@ function Install-HoverTooltips($parent) {
             $cc.Add_MouseEnter(({
                 param($sender, $e)
                 $script:hoverCtl = $sender
-                $script:hoverText = $tip.GetToolTip($sender)
+                $script:hoverText = $script:tip.GetToolTip($sender)
                 try { $hoverTimer.Start() } catch {}
             }).GetNewClosure())
             $cc.Add_MouseLeave(({
                 param($sender, $e)
                 try { $hoverTimer.Stop() } catch {}
-                try { $tip.Hide($sender) } catch {}
+                try { $script:tip.Hide($sender) } catch {}
                 $script:hoverCtl = $null
             }).GetNewClosure())
         }
