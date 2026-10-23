@@ -1584,11 +1584,14 @@ function Invoke-BatchIsp($argString, [int]$TimeoutSec = 300) {
     Log ("batchisp exit code: $($proc.ExitCode)")
     # Detect "Synchronizing target... FAIL Timeout error" = board not in ISP mode
     if ($out -match 'Synchronizing target.*FAIL.*Timeout') {
+        Log "DETECTED: Synchronizing target timeout - showing ISP mode popup"
         $msg = 'Board not in ISP mode (Synchronizing target timeout).`n`n' +
                'Fix: Power off, hold PSEN + RESET together, power on.`n' +
                'Then uncheck AutoISP (toolbar) and press Run again.'
         try {
-            $form.Invoke({
+            Log "Attempting to show popup..."
+            $form.BeginInvoke({
+                Log "Inside BeginInvoke - creating popup"
                 $popup = New-Object Windows.Forms.Form
                 $popup.Text = 'ISP Mode Required'
                 $popup.Size = New-Object Drawing.Size(420, 180)
@@ -1616,8 +1619,10 @@ function Invoke-BatchIsp($argString, [int]$TimeoutSec = 300) {
                 $timer.Add_Tick({ $popup.Close(); $timer.Stop(); $timer.Dispose() })
                 $timer.Start()
                 $null = $popup.ShowDialog($form)
+                Log "Popup closed"
             })
-        } catch {}
+            Log "Popup invoked"
+        } catch { Log "POPUP ERROR: $($_.Exception.Message)" }
     }
     $procEx = New-Object PSObject -Property @{ ExitCode = $proc.ExitCode }
     return $procEx
