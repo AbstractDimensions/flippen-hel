@@ -1590,8 +1590,8 @@ function Invoke-BatchIsp($argString, [int]$TimeoutSec = 300) {
                'Then uncheck AutoISP (toolbar) and press Run again.'
         try {
             Log "Attempting to show popup..."
-            $form.BeginInvoke({
-                Log "Inside BeginInvoke - creating popup"
+            $action = {
+                Log "Inside action - creating popup"
                 $popup = New-Object Windows.Forms.Form
                 $popup.Text = 'ISP Mode Required'
                 $popup.Size = New-Object Drawing.Size(420, 180)
@@ -1620,8 +1620,9 @@ function Invoke-BatchIsp($argString, [int]$TimeoutSec = 300) {
                 $timer.Start()
                 $null = $popup.ShowDialog($form)
                 Log "Popup closed"
-            })
-            Log "Popup invoked"
+            }
+            $form.BeginInvoke($action.GetNewClosure())
+            Log "Popup invoked via BeginInvoke"
         } catch { Log "POPUP ERROR: $($_.Exception.Message)" }
     }
     $procEx = New-Object PSObject -Property @{ ExitCode = $proc.ExitCode }
