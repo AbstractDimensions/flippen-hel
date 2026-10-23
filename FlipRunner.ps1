@@ -1426,7 +1426,15 @@ function Show-PortConflictPopup($portName) {
         $null = $popup.ShowDialog($form)
         Log "Port conflict popup closed"
     }
-    $form.BeginInvoke($action.GetNewClosure())
+    # Use SynchronizationContext to run on UI thread
+    $ctx = [System.Windows.Forms.WindowsFormsSynchronizationContext]::Current
+    if ($ctx) {
+        $ctx.Post({ Log "Port conflict: Posted to sync context" }, $null)
+        $form.BeginInvoke($action.GetNewClosure())
+    } else {
+        Log "No sync context, trying BeginInvoke fallback"
+        $form.BeginInvoke($action.GetNewClosure())
+    }
 }
 function Toggle-Serial {
     if ($port -ne $null -and $port.IsOpen) { Close-Serial; Log 'serial closed' } else { Open-Serial }
@@ -1678,39 +1686,76 @@ function Invoke-BatchIsp($argString, [int]$TimeoutSec = 300) {
                'Then uncheck AutoISP (toolbar) and press Run again.'
         try {
             Log "Attempting to show popup..."
-            $action = {
-                Log "Inside action - creating popup"
-                $popup = New-Object Windows.Forms.Form
-                $popup.Text = 'ISP Mode Required'
-                $popup.Size = New-Object Drawing.Size(420, 180)
-                $popup.StartPosition = 'CenterParent'
-                $popup.FormBorderStyle = 'FixedDialog'
-                $popup.MaximizeBox = $false; $popup.MinimizeBox = $false
-                $popup.ShowInTaskbar = $false
-                Set-AppIcon $popup
-                $lbl = New-Object Windows.Forms.Label
-                $lbl.Text = $msg
-                $lbl.Location = New-Object Drawing.Point(12, 12)
-                $lbl.Size = New-Object Drawing.Size(380, 90)
-                $lbl.Font = New-Object Drawing.Font('Segoe UI', 9)
-                $popup.Controls.Add($lbl)
-                $btn = New-Object Windows.Forms.Button
-                $btn.Text = 'OK'
-                $btn.DialogResult = 'OK'
-                $btn.Location = New-Object Drawing.Point(160, 110)
-                $btn.Size = New-Object Drawing.Size(80, 28)
-                $popup.Controls.Add($btn)
-                $popup.AcceptButton = $btn
-                # Auto-close after 5 seconds
-                $timer = New-Object Windows.Forms.Timer
-                $timer.Interval = 5000
-                $timer.Add_Tick({ $popup.Close(); $timer.Stop(); $timer.Dispose() })
-                $timer.Start()
-                $null = $popup.ShowDialog($form)
-                Log "Popup closed"
+            # Use SynchronizationContext to run on UI thread (fixes BeginInvoke overload error)
+            $ctx = [System.Windows.Forms.WindowsFormsSynchronizationContext]::Current
+            if ($ctx) {
+                $ctx.Post({
+                    Log "Inside Post - creating popup"
+                    $popup = New-Object Windows.Forms.Form
+                    $popup.Text = 'ISP Mode Required'
+                    $popup.Size = New-Object Drawing.Size(420, 180)
+                    $popup.StartPosition = 'CenterParent'
+                    $popup.FormBorderStyle = 'FixedDialog'
+                    $popup.MaximizeBox = $false; $popup.MinimizeBox = $false
+                    $popup.ShowInTaskbar = $false
+                    Set-AppIcon $popup
+                    $lbl = New-Object Windows.Forms.Label
+                    $lbl.Text = $msg
+                    $lbl.Location = New-Object Drawing.Point(12, 12)
+                    $lbl.Size = New-Object Drawing.Size(380, 90)
+                    $lbl.Font = New-Object Drawing.Font('Segoe UI', 9)
+                    $popup.Controls.Add($lbl)
+                    $btn = New-Object Windows.Forms.Button
+                    $btn.Text = 'OK'
+                    $btn.DialogResult = 'OK'
+                    $btn.Location = New-Object Drawing.Point(160, 110)
+                    $btn.Size = New-Object Drawing.Size(80, 28)
+                    $popup.Controls.Add($btn)
+                    $popup.AcceptButton = $btn
+                    # Auto-close after 5 seconds
+                    $timer = New-Object Windows.Forms.Timer
+                    $timer.Interval = 5000
+                    $timer.Add_Tick({ $popup.Close(); $timer.Stop(); $timer.Dispose() })
+                    $timer.Start()
+                    $null = $popup.ShowDialog($form)
+                    Log "Popup closed"
+                }, $null)
+                Log "Posted to sync context"
+            } else {
+                Log "No sync context, trying BeginInvoke fallback"
+                $action = {
+                    Log "Inside BeginInvoke - creating popup"
+                    $popup = New-Object Windows.Forms.Form
+                    $popup.Text = 'ISP Mode Required'
+                    $popup.Size = New-Object Drawing.Size(420, 180)
+                    $popup.StartPosition = 'CenterParent'
+                    $popup.FormBorderStyle = 'FixedDialog'
+                    $popup.MaximizeBox = $false; $popup.MinimizeBox = $false
+                    $popup.ShowInTaskbar = $false
+                    Set-AppIcon $popup
+                    $lbl = New-Object Windows.Forms.Label
+                    $lbl.Text = $msg
+                    $lbl.Location = New-Object Drawing.Point(12, 12)
+                    $lbl.Size = New-Object Drawing.Size(380, 90)
+                    $lbl.Font = New-Object Drawing.Font('Segoe UI', 9)
+                    $popup.Controls.Add($lbl)
+                    $btn = New-Object Windows.Forms.Button
+                    $btn.Text = 'OK'
+                    $btn.DialogResult = 'OK'
+                    $btn.Location = New-Object Drawing.Point(160, 110)
+                    $btn.Size = New-Object Drawing.Size(80, 28)
+                    $popup.Controls.Add($btn)
+                    $popup.AcceptButton = $btn
+                    $timer = New-Object Windows.Forms.Timer
+                    $timer.Interval = 5000
+                    $timer.Add_Tick({ $popup.Close(); $timer.Stop(); $timer.Dispose() })
+                    $timer.Start()
+                    $null = $popup.ShowDialog($form)
+                    Log "Popup closed"
+                }
+                $form.BeginInvoke($action.GetNewClosure())
+                Log "Popup invoked via BeginInvoke"
             }
-            $form.BeginInvoke($action.GetNewClosure())
-            Log "Popup invoked via BeginInvoke"
         } catch { Log "POPUP ERROR: $($_.Exception.Message)" }
     }
     $procEx = New-Object PSObject -Property @{ ExitCode = $proc.ExitCode }
