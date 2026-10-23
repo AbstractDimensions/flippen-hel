@@ -1582,6 +1582,43 @@ function Invoke-BatchIsp($argString, [int]$TimeoutSec = 300) {
     $out = $proc.StandardOutput.ReadToEnd(); if ($out) { Log ("batchisp stdout: $out") }
     $err = $proc.StandardError.ReadToEnd(); if ($err) { Log ("batchisp stderr: $err") }
     Log ("batchisp exit code: $($proc.ExitCode)")
+    # Detect "Synchronizing target... FAIL Timeout error" = board not in ISP mode
+    if ($out -match 'Synchronizing target.*FAIL.*Timeout') {
+        $msg = 'Board not in ISP mode (Synchronizing target timeout).`n`n' +
+               'Fix: Power off, hold PSEN + RESET together, power on.`n' +
+               'Then uncheck AutoISP (toolbar) and press Run again.'
+        try {
+            $form.Invoke({
+                $popup = New-Object Windows.Forms.Form
+                $popup.Text = 'ISP Mode Required'
+                $popup.Size = New-Object Drawing.Size(420, 180)
+                $popup.StartPosition = 'CenterParent'
+                $popup.FormBorderStyle = 'FixedDialog'
+                $popup.MaximizeBox = $false; $popup.MinimizeBox = $false
+                $popup.ShowInTaskbar = $false
+                Set-AppIcon $popup
+                $lbl = New-Object Windows.Forms.Label
+                $lbl.Text = $msg
+                $lbl.Location = New-Object Drawing.Point(12, 12)
+                $lbl.Size = New-Object Drawing.Size(380, 90)
+                $lbl.Font = New-Object Drawing.Font('Segoe UI', 9)
+                $popup.Controls.Add($lbl)
+                $btn = New-Object Windows.Forms.Button
+                $btn.Text = 'OK'
+                $btn.DialogResult = 'OK'
+                $btn.Location = New-Object Drawing.Point(160, 110)
+                $btn.Size = New-Object Drawing.Size(80, 28)
+                $popup.Controls.Add($btn)
+                $popup.AcceptButton = $btn
+                # Auto-close after 5 seconds
+                $timer = New-Object Windows.Forms.Timer
+                $timer.Interval = 5000
+                $timer.Add_Tick({ $popup.Close(); $timer.Stop(); $timer.Dispose() })
+                $timer.Start()
+                $null = $popup.ShowDialog($form)
+            })
+        } catch {}
+    }
     $procEx = New-Object PSObject -Property @{ ExitCode = $proc.ExitCode }
     return $procEx
 }
