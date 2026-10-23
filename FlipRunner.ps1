@@ -65,6 +65,7 @@ function Find-CodeBlocksRoot {
 
 $BatchIsp = Find-BatchIsp
 $ConfigFile = Join-Path $PSScriptRoot 'FlipRunner.json'
+$LogFile = Join-Path $PSScriptRoot 'fliprunner.log'
 $DefaultDevice = 'AT89C51RD2'
 $ResetMagic = '!!!RESET!!!'   # firmware watches for 3x '!' then reboots app
 
@@ -342,12 +343,25 @@ if (-not $storedDevice) {
 }
 # CLI-compatible batchisp runner (no WinForms DoEvents, just WaitForExit)
 function Invoke-BatchIspCli($argString, [int]$TimeoutSec = 180) {
-    $proc = Start-Process -FilePath $BatchIsp -ArgumentList $argString -NoNewWindow -PassThru -ErrorAction Stop
+    Write-Host ("FLIPHEL CMD: batchisp.exe $argString")
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $BatchIsp
+    $psi.Arguments = $argString
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $proc = [System.Diagnostics.Process]::Start($psi)
     if (-not $proc.WaitForExit($TimeoutSec * 1000)) {
         try { $proc.Kill() } catch {}
-        return $null
+        $out = $proc.StandardOutput.ReadToEnd(); if ($out) { Write-Host ("FLIPHEL OUT: $out") }
+        $err = $proc.StandardError.ReadToEnd(); if ($err) { Write-Host ("FLIPHEL ERR: $err") }
+        return -999  # timeout sentinel
     }
-    return $proc
+    $out = $proc.StandardOutput.ReadToEnd(); if ($out) { Write-Host ("FLIPHEL OUT: $out") }
+    $err = $proc.StandardError.ReadToEnd(); if ($err) { Write-Host ("FLIPHEL ERR: $err") }
+    Write-Host ("FLIPHEL EXIT: $($proc.ExitCode)")
+    return $proc.ExitCode
 }
 
 # ---------- headless CLI for AI/automation (zero windows; before any form) ----------
@@ -401,16 +415,16 @@ if ($Cli) {
             $cliArgs = "-device $cliDev -hardware RS232 -port $tryPort -baudrate $cliIsp $cliAuto -operation $cliOp"
             Write-Output ("FLIPHEL TRY ${tryPort}: batchisp.exe $cliArgs")
             try {
-                $cliP = Invoke-BatchIspCli $cliArgs
+                $cliExit = Invoke-BatchIspCli $cliArgs
             } catch { Write-Output ('FLIPHEL FAIL batchisp launch failed on ' + $tryPort + ': ' + $_.Exception.Message); continue }
-            if ($cliP -eq $null) { Write-Output ('FLIPHEL FAIL batchisp timed out on ' + $tryPort + ' - a modal dialog may be blocking it (usually a missing Atmel DLL)'); continue }
-            if ($cliP.ExitCode -eq 0) {
+            if ($cliExit -eq -999) { Write-Output ('FLIPHEL FAIL batchisp timed out on ' + $tryPort + ' - a modal dialog may be blocking it (usually a missing Atmel DLL)'); continue }
+            if ($cliExit -eq 0) {
                 $cliFlashOk = $true
                 $cliPort = $tryPort
                 Write-Output ('FLIPHEL OK flashed ' + $cliHex + ' on ' + $cliPort + ' as ' + $cliDev)
                 exit 0
             } else {
-                Write-Output ('FLIPHEL FAIL batchisp exit ' + $cliP.ExitCode + ' on ' + $tryPort + ' -- trying next port')
+                Write-Output ('FLIPHEL FAIL batchisp exit ' + $cliExit + ' on ' + $tryPort + ' -- trying next port')
             }
         }
         Write-Output ('FLIPHEL FAIL all ports exhausted (device ' + $cliDev + ' isp ' + $cliIsp + ')')
@@ -1168,7 +1182,12 @@ $stNext = New-Object Windows.Forms.ToolStripStatusLabel; $stNext.Text = 'Next: .
 [void]$status.Items.Add($stNext)
 $form.Controls.Add($status)
 
-function Log($s) { $termLog.AppendText($s + "`r`n"); $stInfo.Text = $s }
+function Log($s) {
+    $termLog.AppendText($s + "`r`n")
+    $stInfo.Text = $s
+    # Also write to a log file for debugging
+    try { Add-Content -Path $script:LogFile -Value ("$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $s") -ErrorAction SilentlyContinue } catch {}
+}
 
 # Single place that refreshes the State + Next strip fields. State always
 # recomputed (hex leaf + age | device | port); Next only overwritten when a
@@ -1298,7 +1317,8 @@ function Refresh-Ports {
 # ---------- serial ----------
 $port = $null
 function Close-Serial {
-    try { if ($pollTimer -ne $null) { $pollTimer.Stop() } } catch {}
+    # Stop the timer FIRST, wait a tick so any in-flight read finishes
+    try { if ($pollTimer -ne $null) { $pollTimer.Stop(); Start-Sleep -Milliseconds 60 } } catch {}
     if ($port -ne $null) { try { $port.Close() } catch {}; $script:port = $null }
     $stComm.Text = 'Communication OFF'
     Update-SerialButtons
@@ -1364,7 +1384,7 @@ function Run-StagedFlash {
     if ($hex -eq '' -or -not (Test-Path $hex)) { Log 'pick a valid .hex file first (Ctrl+O)'; return }
     if (-not (Test-Path $BatchIsp)) { Log ('batchisp not found: ' + $BatchIsp); return }
     $wasOpen = ($port -ne $null -and $port.IsOpen)
-    Close-Serial; Start-Sleep -Milliseconds 200
+    Close-Serial; Start-Sleep -Milliseconds 300
     $auto = ''; if ($chkAuto.Checked) { $auto = '-autoisp 1 0' }
 
     # Build port retry list. Auto-retry off = try only the chosen port, exactly
@@ -1536,7 +1556,15 @@ function Invoke-OpOnPorts($op, $label) {
 # clicked OK - which is exactly the "AtLibUsbDfu.dll not found" trap. Timing out
 # and killing the process makes the dialog go away and lets the app report.
 function Invoke-BatchIsp($argString, [int]$TimeoutSec = 180) {
-    $proc = Start-Process -FilePath $BatchIsp -ArgumentList $argString -NoNewWindow -PassThru -ErrorAction Stop
+    Log ("batchisp.exe $argString")
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $BatchIsp
+    $psi.Arguments = $argString
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $proc = [System.Diagnostics.Process]::Start($psi)
     # Poll instead of WaitForExit: blocking the UI thread freezes the whole app,
     # so the progress popup never paints and it looks hung. DoEvents keeps the
     # form alive while batchisp runs.
@@ -1547,9 +1575,15 @@ function Invoke-BatchIsp($argString, [int]$TimeoutSec = 180) {
     }
     if (-not $proc.HasExited) {
         try { $proc.Kill() } catch {}
+        $out = $proc.StandardOutput.ReadToEnd(); if ($out) { Log ("batchisp stdout: $out") }
+        $err = $proc.StandardError.ReadToEnd(); if ($err) { Log ("batchisp stderr: $err") }
         return $null   # timed out
     }
-    return $proc
+    $out = $proc.StandardOutput.ReadToEnd(); if ($out) { Log ("batchisp stdout: $out") }
+    $err = $proc.StandardError.ReadToEnd(); if ($err) { Log ("batchisp stderr: $err") }
+    Log ("batchisp exit code: $($proc.ExitCode)")
+    $procEx = New-Object PSObject -Property @{ ExitCode = $proc.ExitCode }
+    return $procEx
 }
 
 function Device-Erase($blocks) {
@@ -1853,6 +1887,7 @@ foreach ($__owned in @($settingsForm, $termForm, $helpForm, $progForm)) {
 
 # Run pending device guess after UI is up (recursive scan is slow)
 $form.Add_Shown({
+    Log 'FLIPpen Hel started'
     if ($script:PendingDeviceGuess) {
         $guessed = Invoke-DeviceGuess
         if ($guessed -ne $null -and $guessed -ne '') { $txtDev.Text = $guessed; Log ('auto-detected device: ' + $guessed) }
