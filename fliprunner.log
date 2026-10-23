@@ -1,1 +1,89 @@
 2026-10-23 17:34:26 FLIPpen Hel started
+2026-10-23 19:29:46 [Erase] MEMORY FLASH ERASE F
+2026-10-23 19:29:46 batchisp.exe -device AT89C51RD2 -hardware RS232 -port COM3 -baudrate 115200 -autoisp 1 0 -operation MEMORY FLASH ERASE F
+2026-10-23 19:29:52 batchisp stdout: Running batchisp 1.2.5 on Fri Oct 23 19:29:46 2026
+
+
+
+AT89C51RD2 - RS232 - COM3 - 115200
+
+
+Device selection....................... PASS 
+Hardware selection..................... PASS 
+Opening port........................... PASS 
+Setting Auto ISP....................... PASS 
+Synchronizing target................... PASS 
+Reading Bootloader version............. PASS	1.3.1
+Selecting FLASH........................ PASS 
+Erasing................................ PASS 
+
+Summary:  Total 8   Passed 8   Failed 0
+
+2026-10-23 19:29:52 batchisp exit code: 0
+2026-10-23 19:29:52 OK
+2026-10-23 19:29:52 [Blank Check] MEMORY FLASH BLANKCHECK
+2026-10-23 19:29:52 batchisp.exe -device AT89C51RD2 -hardware RS232 -port COM3 -baudrate 115200 -autoisp 1 0 -operation MEMORY FLASH BLANKCHECK
+2026-10-23 19:29:55 batchisp stdout: Running batchisp 1.2.5 on Fri Oct 23 19:29:52 2026
+
+
+
+AT89C51RD2 - RS232 - COM3 - 115200
+
+
+Device selection....................... PASS 
+Hardware selection..................... PASS 
+Opening port........................... PASS 
+Setting Auto ISP....................... PASS 
+Synchronizing target................... PASS 
+Reading Bootloader version............. PASS	1.3.1
+Selecting FLASH........................ PASS 
+Blank checking......................... PASS	0x00000	0x0ffff
+
+Summary:  Total 8   Passed 8   Failed 0
+
+2026-10-23 19:29:55 batchisp exit code: 0
+2026-10-23 19:29:55 OK
+2026-10-23 19:29:55 [Program] MEMORY FLASH LOADBUFFER "C:\Users\Louis\OneDrive\Documents\CodeBlocks\doom_fire\bin\Debug\doom_fire.hex" PROGRAM
+2026-10-23 19:29:55 batchisp.exe -device AT89C51RD2 -hardware RS232 -port COM3 -baudrate 115200 -autoisp 1 0 -operation MEMORY FLASH LOADBUFFER "C:\Users\Louis\OneDrive\Documents\CodeBlocks\doom_fire\bin\Debug\doom_fire.hex" PROGRAM
+2026-10-23 19:29:59 batchisp stdout: Running batchisp 1.2.5 on Fri Oct 23 19:29:55 2026
+
+
+
+AT89C51RD2 - RS232 - COM3 - 115200
+
+
+Device selection....................... PASS 
+Hardware selection..................... PASS 
+Opening port........................... PASS 
+Setting Auto ISP....................... PASS 
+Synchronizing target................... PASS 
+Reading Bootloader version............. PASS	1.3.1
+Selecting FLASH........................ PASS 
+Parsing HEX file....................... PASS	C:\Users\Louis\OneDrive\Documents\CodeBlocks\doom_fire\bin\Debug\doom_fire.hex
+Programming memory..................... PASS	0x00000	0x006fe
+
+Summary:  Total 9   Passed 9   Failed 0
+
+2026-10-23 19:29:59 batchisp exit code: 0
+2026-10-23 19:29:59 OK
+2026-10-23 19:29:59 [Verify] MEMORY FLASH VERIFY
+2026-10-23 19:29:59 batchisp.exe -device AT89C51RD2 -hardware RS232 -port COM3 -baudrate 115200 -autoisp 1 0 -operation MEMORY FLASH VERIFY
+2026-10-23 19:32:59 batchisp stdout: Running batchisp 1.2.5 on Fri Oct 23 19:29:59 2026
+
+
+
+AT89C51RD2 - RS232 - COM3 - 115200
+
+
+Device selection....................... PASS 
+Hardware selection..................... PASS 
+Opening port........................... PASS 
+Setting Auto ISP....................... PASS 
+Synchronizing target................... PASS 
+Reading Bootloader version............. PASS	1.3.1
+Selecting FLASH........................ PASS 
+Verifying memory....................... FAIL	Verify device fail at 0x00000
+(A)bort, (R)etry, (I)gnore ? 
+2026-10-23 19:32:59 batchisp timed out on COM3 - a modal dialog may be blocking it. Trying next port
+2026-10-23 19:32:59 Port COM3 failed -- trying next
+2026-10-23 19:36:16 FLIPpen Hel started

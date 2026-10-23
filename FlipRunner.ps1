@@ -342,7 +342,7 @@ if (-not $storedDevice) {
     if ($doGuess) { $script:PendingDeviceGuess = $true }
 }
 # CLI-compatible batchisp runner (no WinForms DoEvents, just WaitForExit)
-function Invoke-BatchIspCli($argString, [int]$TimeoutSec = 180) {
+function Invoke-BatchIspCli($argString, [int]$TimeoutSec = 300) {
     Write-Host ("FLIPHEL CMD: batchisp.exe $argString")
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $BatchIsp
@@ -767,9 +767,9 @@ $btnClearOps = New-Object Windows.Forms.Button; $btnClearOps.Text = 'Clear'
 $btnClearOps.Location = New-Object Drawing.Point(120, $btnY); $btnClearOps.Size = New-Object Drawing.Size(110, 28)
 $gOp.Controls.Add($btnClearOps)
 $btnClearOps.Add_Click({
-    $chkOps['Erase'].Checked = $true; $chkOps['Blank Check'].Checked = $true
+    $chkOps['Erase'].Checked = $true; $chkOps['Blank Check'].Checked = $false
     $chkOps['Program'].Checked = $true; $chkOps['Verify'].Checked = $true
-    $chkOps['Start Application'].Checked = $true
+    $chkOps['Start Application'].Checked = $false
     foreach ($k in @($chkAutoFlow.Keys)) { $chkAutoFlow[$k].Checked = $true }
     $chkAuto.Checked = $true
     Clear-OpsResult; Log 'operations flow cleared - ISP stages and automation back to defaults'
@@ -1555,7 +1555,7 @@ function Invoke-OpOnPorts($op, $label) {
 # MODAL message box, and -Wait with no timeout would hang the app until someone
 # clicked OK - which is exactly the "AtLibUsbDfu.dll not found" trap. Timing out
 # and killing the process makes the dialog go away and lets the app report.
-function Invoke-BatchIsp($argString, [int]$TimeoutSec = 180) {
+function Invoke-BatchIsp($argString, [int]$TimeoutSec = 300) {
     Log ("batchisp.exe $argString")
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $BatchIsp
