@@ -1338,7 +1338,95 @@ function Open-Serial {
         Log ("serial open " + $cmbPort.Text + ' @ ' + $txtMonBaud.Text + ' 8N1')
         Show-Terminal
         Update-StateNext 'Send !!! via Firmware Reset (Ctrl+R) or watch output'
-    } catch { Log ('serial open FAILED: ' + $_.Exception.Message) }
+    } catch {
+        $err = $_.Exception.Message
+        Log ('serial open FAILED: ' + $err)
+        if ($err -match 'Access to the port|is denied|Access is denied') {
+            Show-PortConflictPopup $cmbPort.Text
+        }
+    }
+}
+
+# Find processes holding a COM port and show popup with Kill button
+function Show-PortConflictPopup($portName) {
+    $holders = @()
+    try {
+        # Query WMI for processes using the serial port
+        $wmi = Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -match $portName }
+        foreach ($w in $wmi) {
+            $holders += @{ Pid = $w.ProcessId; Name = $w.Name; Cmd = $w.CommandLine }
+        }
+    } catch {}
+    # Fallback: check common serial apps
+    $common = @('batchisp', 'putty', 'tera term', 'teraterm', 'arduino', 'flip', 'flipper', 'serial', 'mobaterm')
+    foreach ($p in Get-Process) {
+        if ($common | Where-Object { $p.ProcessName -match $_ }) {
+            if ($holders | Where-Object { $_.Pid -eq $p.Id }) { continue }
+            $holders += @{ Pid = $p.Id; Name = $p.ProcessName; Cmd = '' }
+        }
+    }
+    if ($holders.Count -eq 0) { return }
+    $action = {
+        Log "Inside port conflict popup action"
+        $popup = New-Object Windows.Forms.Form
+        $popup.Text = "Port $portName is busy"
+        $popup.Size = New-Object Drawing.Size(500, 300)
+        $popup.StartPosition = 'CenterParent'
+        $popup.FormBorderStyle = 'FixedDialog'
+        $popup.MaximizeBox = $false; $popup.MinimizeBox = $false
+        $popup.ShowInTaskbar = $false
+        Set-AppIcon $popup
+        $lbl = New-Object Windows.Forms.Label
+        $lbl.Text = "Something is holding ${portName}:`n`n"
+        $lbl.Location = New-Object Drawing.Point(12, 12)
+        $lbl.Size = New-Object Drawing.Size(460, 30)
+        $lbl.Font = New-Object Drawing.Font('Segoe UI', 9)
+        $popup.Controls.Add($lbl)
+        $lv = New-Object Windows.Forms.ListView
+        $lv.Location = New-Object Drawing.Point(12, 48)
+        $lv.Size = New-Object Drawing.Size(460, 150)
+        $lv.View = 'Details'
+        $lv.FullRowSelect = $true
+        $lv.GridLines = $true
+        $lv.Columns.Add('PID', 60)
+        $lv.Columns.Add('Name', 120)
+        $lv.Columns.Add('Command', 280)
+        foreach ($h in $holders) {
+            $item = $lv.Items.Add($h.Pid.ToString())
+            $item.SubItems.Add($h.Name)
+            $item.SubItems.Add(($h.Cmd -replace '^.*\\', '') -replace '^.*Atmel.*', 'Atmel FLIP')
+        }
+        $popup.Controls.Add($lv)
+        $btnKill = New-Object Windows.Forms.Button
+        $btnKill.Text = 'Kill Selected'
+        $btnKill.Location = New-Object Drawing.Point(12, 210)
+        $btnKill.Size = New-Object Drawing.Size(100, 28)
+        $btnKill.Add_Click({
+            $sel = $lv.SelectedItems
+            if ($sel.Count -gt 0) {
+                $pid = [int]$sel[0].Text
+                try { Stop-Process -Id $pid -Force -ErrorAction Stop; Log "Killed PID $pid"; $popup.Close() } catch { Log "Kill failed: $($_.Exception.Message)" }
+            }
+        })
+        $popup.Controls.Add($btnKill)
+        $btnRefresh = New-Object Windows.Forms.Button
+        $btnRefresh.Text = 'Refresh'
+        $btnRefresh.Location = New-Object Drawing.Point(120, 210)
+        $btnRefresh.Size = New-Object Drawing.Size(80, 28)
+        $btnRefresh.Add_Click({ $popup.Close(); Show-PortConflictPopup $portName })
+        $popup.Controls.Add($btnRefresh)
+        $btnClose = New-Object Windows.Forms.Button
+        $btnClose.Text = 'Close'
+        $btnClose.DialogResult = 'Cancel'
+        $btnClose.Location = New-Object Drawing.Point(392, 210)
+        $btnClose.Size = New-Object Drawing.Size(80, 28)
+        $popup.Controls.Add($btnClose)
+        $popup.AcceptButton = $btnKill
+        $popup.CancelButton = $btnClose
+        $null = $popup.ShowDialog($form)
+        Log "Port conflict popup closed"
+    }
+    $form.BeginInvoke($action.GetNewClosure())
 }
 function Toggle-Serial {
     if ($port -ne $null -and $port.IsOpen) { Close-Serial; Log 'serial closed' } else { Open-Serial }
