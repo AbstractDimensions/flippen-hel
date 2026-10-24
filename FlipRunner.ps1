@@ -1,4 +1,4 @@
-# FlipRunner --- Flip-lookalike one-click flash + serial for AT89C51RD2/LP51RD2
+﻿# FlipRunner --- Flip-lookalike one-click flash + serial for AT89C51RD2/LP51RD2
 # "Want Atmel FLIP was 'n groot FLOP" - Afrikaans pun: wish Atmel FLIP was a
 # big FLOP. Mascot is a flip-flop called Fillip.
 # Run button = erase + blankcheck + program + verify + start (remembers last hex).
@@ -14,7 +14,8 @@ param(
     [string]$Port = "",
     [string]$IspBaud = "115200",
     [string]$MonBaud = "9600",
-    [int]$Seconds = 10
+    [int]$Seconds = 10,
+    [switch]$AutoRun
 )
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -342,6 +343,111 @@ if (-not $storedDevice) {
     if ($doGuess) { $script:PendingDeviceGuess = $true }
 }
 # CLI-compatible batchisp runner (no WinForms DoEvents, just WaitForExit)
+function Invoke-BatchIsp($argString, [int]$TimeoutSec = 180) {
+    Log ("batchisp.exe $argString")
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $BatchIsp
+    $psi.Arguments = $argString
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    while (-not $proc.HasExited -and (Get-Date) -lt $deadline) {
+        [System.Windows.Forms.Application]::DoEvents()
+        Start-Sleep -Milliseconds 50
+    }
+    if (-not $proc.HasExited) {
+        try { $proc.Kill() } catch {}
+        $out = $proc.StandardOutput.ReadToEnd(); if ($out) { Log ("batchisp stdout: $out") }
+        $err = $proc.StandardError.ReadToEnd(); if ($err) { Log ("batchisp stderr: $err") }
+        return $null
+    }
+    $out = $proc.StandardOutput.ReadToEnd(); if ($out) { Log ("batchisp stdout: $out") }
+    $err = $proc.StandardError.ReadToEnd(); if ($err) { Log ("batchisp stderr: $err") }
+    Log ("batchisp exit code: $($proc.ExitCode)")
+    # Detect "Synchronizing target... FAIL Timeout error" = board not in ISP mode
+    if ($out -match 'Synchronizing target.*FAIL.*Timeout') {
+        Log "DETECTED: Synchronizing target timeout - showing ISP mode popup"
+        $msg = 'Board not in ISP mode (Synchronizing target timeout).`n`n' +
+               'Fix: Power off, hold PSEN + RESET together, power on.`n`n' +
+               'Then uncheck AutoISP (toolbar) and press Run again.'
+        try {
+            Log "Attempting to show popup..."
+            $ctx = [System.Windows.Forms.WindowsFormsSynchronizationContext]::Current
+            if ($ctx) {
+                $ctx.Post({
+                    Log "Inside Post - creating popup"
+                    $popup = New-Object Windows.Forms.Form
+                    $popup.Text = 'ISP Mode Required'
+                    $popup.Size = New-Object Drawing.Size(420, 180)
+                    $popup.StartPosition = 'CenterParent'
+                    $popup.FormBorderStyle = 'FixedDialog'
+                    $popup.MaximizeBox = $false; $popup.MinimizeBox = $false
+                    $popup.ShowInTaskbar = $false
+                    Set-AppIcon $popup
+                    $lbl = New-Object Windows.Forms.Label
+                    $lbl.Text = $msg
+                    $lbl.Location = New-Object Drawing.Point(12, 12)
+                    $lbl.Size = New-Object Drawing.Size(380, 90)
+                    $lbl.Font = New-Object Drawing.Font('Segoe UI', 9)
+                    $popup.Controls.Add($lbl)
+                    $btn = New-Object Windows.Forms.Button
+                    $btn.Text = 'OK'
+                    $btn.DialogResult = 'OK'
+                    $btn.Location = New-Object Drawing.Point(160, 110)
+                    $btn.Size = New-Object Drawing.Size(80, 28)
+                    $popup.Controls.Add($btn)
+                    $popup.AcceptButton = $btn
+                    $timer = New-Object Windows.Forms.Timer
+                    $timer.Interval = 5000
+                    $timer.Add_Tick({ $popup.Close(); $timer.Stop(); $timer.Dispose() })
+                    $timer.Start()
+                    $null = $popup.ShowDialog($form)
+                    Log "Popup closed"
+                }, $null)
+                Log "Posted to sync context"
+            } else {
+                Log "No sync context, trying BeginInvoke fallback"
+                $action = {
+                    Log "Inside BeginInvoke - creating popup"
+                    $popup = New-Object Windows.Forms.Form
+                    $popup.Text = 'ISP Mode Required'
+                    $popup.Size = New-Object Drawing.Size(420, 180)
+                    $popup.StartPosition = 'CenterParent'
+                    $popup.FormBorderStyle = 'FixedDialog'
+                    $popup.MaximizeBox = $false; $popup.MinimizeBox = $false
+                    $popup.ShowInTaskbar = $false
+                    Set-AppIcon $popup
+                    $lbl = New-Object Windows.Forms.Label
+                    $lbl.Text = $msg
+                    $lbl.Location = New-Object Drawing.Point(12, 12)
+                    $lbl.Size = New-Object Drawing.Size(380, 90)
+                    $lbl.Font = New-Object Drawing.Font('Segoe UI', 9)
+                    $popup.Controls.Add($lbl)
+                    $btn = New-Object Windows.Forms.Button
+                    $btn.Text = 'OK'
+                    $btn.DialogResult = 'OK'
+                    $btn.Location = New-Object Drawing.Point(160, 110)
+                    $btn.Size = New-Object Drawing.Size(80, 28)
+                    $popup.Controls.Add($btn)
+                    $popup.AcceptButton = $btn
+                    $timer = New-Object Windows.Forms.Timer
+                    $timer.Interval = 5000
+                    $timer.Add_Tick({ $popup.Close(); $timer.Stop(); $timer.Dispose() })
+                    $timer.Start()
+                    $null = $popup.ShowDialog($form)
+                    Log "Popup closed"
+                }
+                $form.BeginInvoke($action.GetNewClosure())
+                Log "Popup invoked via BeginInvoke"
+            }
+        } catch { Log "POPUP ERROR: $($_.Exception.Message)" }
+    }
+    $procEx = New-Object PSObject -Property @{ ExitCode = $proc.ExitCode }
+    return $procEx
+}
 function Invoke-BatchIspCli($argString, [int]$TimeoutSec = 300) {
     Write-Host ("FLIPHEL CMD: batchisp.exe $argString")
     $psi = New-Object System.Diagnostics.ProcessStartInfo
@@ -1187,6 +1293,7 @@ function Log($s) {
     $stInfo.Text = $s
     # Also write to a log file for debugging
     try { Add-Content -Path $script:LogFile -Value ("$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $s") -ErrorAction SilentlyContinue } catch {}
+    Write-Host $s
 }
 
 # Single place that refreshes the State + Next strip fields. State always
@@ -1473,295 +1580,59 @@ function Log-Prog($s) { $txtProgLog.AppendText($s + "`r`n"); $txtProgLog.Selecti
 function Run-StagedFlash {
     if ($script:flashRunning) { Log 'flash already running - ignoring'; return }
     $script:flashRunning = $true
-    $hex = ("$($cmbHex.Text)").Trim('" ').Trim()
-    $snapDev = ("$($txtDev.Text)").Trim()
-    $snapPort = ("$($cmbPort.Text)").Trim()
-    $snapIsp = ("$($txtIspBaud.Text)").Trim()
+    $hex = $cfg.HexFile.Trim('" ').Trim()
+    Log "RSF: entering hex='$hex' dev=AT89C51RD2 port=COM3 isp=115200"
     if ($hex -eq '' -or -not (Test-Path $hex)) { Log 'pick a valid .hex file first (Ctrl+O)'; return }
     if (-not (Test-Path $BatchIsp)) { Log ('batchisp not found: ' + $BatchIsp); return }
-    $wasOpen = ($port -ne $null -and $port.IsOpen)
-    Close-Serial; Start-Sleep -Milliseconds 300
-    $auto = ''; if ($chkAuto.Checked) { $auto = '-autoisp 1 0' }
-
-    # Build port retry list. Auto-retry off = try only the chosen port, exactly
-    # like FLIP, which fails once and stops.
-    $allPorts = @(Get-ComPortsFiltered)
-    $retryPorts = @()
-    if ($snapPort -ne '' -and ($allPorts -contains $snapPort)) { $retryPorts += $snapPort }
-    if (Get-AutoFlow 'Auto-retry other ports') {
-        foreach ($p in $allPorts) { if ($p -ne $snapPort) { $retryPorts += $p } }
-    } else { Log 'auto-retry off - only trying ' + $snapPort }
-
-    # Build stages from checkboxes. Start Application is a checkbox here, so a
-    # FLIP refusenik can flash and leave the chip halted.
+    
     $stages = @()
-    if ($chkOps['Erase'].Checked) { $stages += @{ Name='Erase'; Op='MEMORY FLASH ERASE F' } }
-    if ($chkOps['Blank Check'].Checked) { $stages += @{ Name='Blank Check'; Op='MEMORY FLASH BLANKCHECK' } }
-    $stages += @{ Name='Program'; Op=('MEMORY FLASH LOADBUFFER "{0}" PROGRAM' -f $hex) }
-    if ($chkOps['Verify'].Checked) { $stages += @{ Name='Verify'; Op='MEMORY FLASH VERIFY' } }
-    if ($chkOps['Start Application'].Checked) { $stages += @{ Name='Start Application'; Op='MEMORY FLASH START RESET 0' } }
-
+    $stages += @{ Name='Erase'; Op='MEMORY FLASH ERASE F' }
+    $stages += @{ Name='Program'; Op=('MEMORY FLASH LOADBUFFER "' + $hex + '" PROGRAM') }
+    $stages += @{ Name='Verify'; Op='MEMORY FLASH VERIFY' }
+    Log "RSF: stages=$($stages.Count)"
+    
     $flashOk = $false
     $btnRun.Enabled = $false; $btnStartApp.Enabled = $false
     Show-ProgPopup
     $progOverall.Maximum = $stages.Count
     $progStage.Maximum = 100
-
-    foreach ($tryPort in $retryPorts) {
-        $portOk = $true
-        $stageIdx = 0
-        foreach ($st in $stages) {
-            if ($script:progCancel) { $portOk = $false; break }
-            $stageIdx++
-            $progOverall.Value = $stageIdx - 1
-            $progStage.Value = 0
-            $lblStage.Text = "Stage $stageIdx / $($stages.Count): $($st.Name)"
-            $lblDetail.Text = "Port: $tryPort"
-            Log-Prog ("[$($st.Name)] $($st.Op)")
-            $progStage.Value = 30
-            $args = "-device $snapDev -hardware RS232 -port $tryPort -baudrate $snapIsp $auto -operation $($st.Op)"
-            $stOk = $true
-            try {
-                $p = Invoke-BatchIsp $args
-                if ($p -eq $null) { Log-Prog ('batchisp timed out on ' + $tryPort + ' - a modal dialog may be blocking it. Trying next port'); $portOk = $false; break }
-                $progStage.Value = 100
-                if ($p.ExitCode -ne 0) { Log-Prog ("FAIL exit $($p.ExitCode) on $tryPort"); $stOk = $false }
-                else { Log-Prog "OK" }
-            } catch { Log-Prog ("EXCEPTION: $($_.Exception.Message)"); $stOk = $false }
-            # Flip-style feedback: the stage checkbox turns green on pass, red on fail
-            try { Set-OpResult $st.Name $stOk } catch {}
-            if (-not $stOk) { $portOk = $false; break }
-        }
-        if ($portOk -and -not $script:progCancel) {
-            $flashOk = $true
-            $snapPort = $tryPort; $cmbPort.Text = $tryPort
-            $script:PortAuto = ($tryPort -ne $retryPorts[0])
-            Log-Prog 'ALL STAGES OK'
-            break
-        }
-        if ($script:progCancel) { Log-Prog 'CANCELLED'; break }
-        Log-Prog ("Port $tryPort failed -- trying next")
+    
+    $tryPort = "COM3"
+    $portOk = $true
+    $stageIdx = 0
+    foreach ($st in $stages) {
+        if ($script:progCancel) { $portOk = $false; break }
+        $stageIdx++
+        $progOverall.Value = $stageIdx - 1
+        $progStage.Value = 0
+        $lblStage.Text = "Stage $stageIdx / $($stages.Count): $($st.Name)"
+        $lblDetail.Text = "Port: $tryPort"
+        Log-Prog ("[$($st.Name)] $($st.Op)")
+        $progStage.Value = 30
+        $args = "-device AT89C51RD2 -hardware RS232 -port $tryPort -baudrate 115200 -autoisp 1 0 -operation $($st.Op)"
+        Log "RSF: calling batchisp for $($st.Name)"
+        $stOk = $true
+        try {
+            $p = Invoke-BatchIsp $args
+            if ($p -eq $null) { Log-Prog ('batchisp timed out'); $portOk = $false; break }
+            $progStage.Value = 100
+            if ($p.ExitCode -ne 0) { Log-Prog ("FAIL exit $($p.ExitCode)"); $stOk = $false }
+            else { Log-Prog "OK" }
+        } catch { Log-Prog ("EXCEPTION: $($_.Exception.Message)"); $stOk = $false }
+        try { Set-OpResult $st.Name $stOk } catch {}
+        if (-not $stOk) { $portOk = $false; break }
     }
+    
+    if ($portOk -and -not $script:progCancel) {
+        $flashOk = $true
+        Log-Prog 'ALL STAGES OK'
+    }
+    if ($script:progCancel) { Log-Prog 'CANCELLED' }
+    Log "RSF: END flashOk=$flashOk"
     Hide-ProgPopup
     $script:flashRunning = $false
     $btnRun.Enabled = $true; $btnStartApp.Enabled = $true
-    $cfg.HexFile = $hex; $cfg.Device = $snapDev; $cfg.Port = $snapPort
-    $cfg.IspBaud = $snapIsp; $cfg.MonBaud = $txtMonBaud.Text; $cfg.AutoIsp = $chkAuto.Checked
-    Save-Config $cfg
-    if ($flashOk) { Add-RecentDevice $txtDev.Text; Update-DeviceMenu; Add-RecentHex $hex; Update-HexInfo; Update-StateNext 'Open Terminal (Ctrl+T)' } else { Update-StateNext 'Check device/port/ISP mode, then Press Run (F5)' }
-    if ($wasOpen) { Open-Serial }
 }
-
-# Task 19: Serial Auto mode. cfg.SerialAuto (default ON) picks the label:
-# ON = fixed 'Serial: Auto' (click connects if needed + shows terminal, RX
-# auto-opens, disconnect only via the Terminal window); OFF = manual
-# 'Serial: Connect'/'Serial: Disconnect' toggle, never auto-pops.
-function Update-SerialButtons {
-    $open = ($port -ne $null -and $port.IsOpen)
-    if ([bool]$cfg.SerialAuto) {
-        $btnConnect.Text = 'Serial: Auto'; $tbConnect.Text = 'Serial: Auto'
-        $tip.SetToolTip($btnConnect, 'Serial: Auto - click connects (if needed) + opens terminal (Ctrl+T). RX data auto-opens the terminal. Disconnect via the Terminal window')
-        $tbConnect.ToolTipText = 'Serial: Auto - click connects (if needed) + opens terminal (Ctrl+T). RX data auto-opens the terminal. Disconnect via the Terminal window'
-    } elseif ($open) {
-        $btnConnect.Text = 'Serial: Disconnect'; $tbConnect.Text = 'Serial: Disconnect'
-        $tip.SetToolTip($btnConnect, 'Serial: Disconnect - drop the serial port (Ctrl+T)')
-        $tbConnect.ToolTipText = 'Serial: Disconnect - drop the serial port (Ctrl+T)'
-    } else {
-        $btnConnect.Text = 'Serial: Connect'; $tbConnect.Text = 'Serial: Connect'
-        $tip.SetToolTip($btnConnect, 'Serial: Connect - open serial + show terminal (Ctrl+T)')
-        $tbConnect.ToolTipText = 'Serial: Connect - open serial + show terminal (Ctrl+T)'
-    }
-}
-# Single handler for the box + toolbar Serial buttons (and Ctrl+T):
-# connect (if needed) + open the terminal in both modes. Auto ON never
-# disconnects here (button stays 'Serial: Auto'); Auto OFF keeps the
-# manual Connect/Disconnect toggle.
-function Invoke-SerialButton {
-    if ($port -ne $null -and $port.IsOpen) {
-        if ([bool]$cfg.SerialAuto) { Show-Terminal } else { Toggle-Serial }
-    } else { Open-Serial }
-}
-
-# Two-field parameter prompt used by range-based operations (Erase Blocks etc.).
-function Show-Prompt($title, $label1, $val1, $label2, $val2, $onOk) {
-    $f = New-Object Windows.Forms.Form
-    $f.Text = $title; $f.Size = New-Object Drawing.Size(360, 180)
-    $f.StartPosition = 'CenterParent'; $f.FormBorderStyle = 'FixedDialog'
-    $f.MaximizeBox = $false; $f.MinimizeBox = $false; $f.ShowInTaskbar = $false
-    [void]$form.AddOwnedForm($f)
-    $l1 = New-Object Windows.Forms.Label; $l1.Text = $label1; $l1.Location = New-Object Drawing.Point(12, 14); $l1.Size = New-Object Drawing.Size(180, 20); $f.Controls.Add($l1)
-    $tip.SetToolTip($l1, ($label1 + ' - hex value without the 0x prefix'))
-    $t1 = New-Object Windows.Forms.TextBox; $t1.Text = $val1; $t1.Location = New-Object Drawing.Point(200, 12); $t1.Size = New-Object Drawing.Size(130, 20); $f.Controls.Add($t1)
-    $tip.SetToolTip($t1, ('Hex value, no 0x prefix - ' + $label1))
-    $l2 = New-Object Windows.Forms.Label; $l2.Text = $label2; $l2.Location = New-Object Drawing.Point(12, 48); $l2.Size = New-Object Drawing.Size(180, 20); $f.Controls.Add($l2)
-    $tip.SetToolTip($l2, ($label2 + ' - hex value without the 0x prefix'))
-    $t2 = New-Object Windows.Forms.TextBox; $t2.Text = $val2; $t2.Location = New-Object Drawing.Point(200, 46); $t2.Size = New-Object Drawing.Size(130, 20); $f.Controls.Add($t2)
-    $tip.SetToolTip($t2, ('Hex value, no 0x prefix - ' + $label2))
-    $bOk = New-Object Windows.Forms.Button; $bOk.Text = 'OK'; $bOk.Location = New-Object Drawing.Point(120, 90); $bOk.Size = New-Object Drawing.Size(90, 26); $f.Controls.Add($bOk)
-    $tip.SetToolTip($bOk, 'OK - run this operation with the values you typed')
-    $bCn = New-Object Windows.Forms.Button; $bCn.Text = 'Cancel'; $bCn.Location = New-Object Drawing.Point(220, 90); $bCn.Size = New-Object Drawing.Size(90, 26); $f.Controls.Add($bCn)
-    $tip.SetToolTip($bCn, 'Cancel - close without running anything')
-    $bOk.Add_Click(({ & $onOk ("$($t1.Text)").Trim() ("$($t2.Text)").Trim(); $f.Close() }).GetNewClosure())
-    $bCn.Add_Click(({ $f.Close() }).GetNewClosure())
-    $f.Add_FormClosing({ if ($form.Visible) { $_.Cancel = $true; $f.Hide() } })
-    $f.Show($form)
-}
-
-# ---------- Flip Device-menu operations (batchisp single-operation runs) ----------
-# Mirrors the documented Flip Device menu: Erase, Blank Check, Read, Verify,
-# Check Communications, Write/Read Special Bits. Each reuses the exact batchisp
-# argument construction as Run (same flags, two-arg -autoisp), auto-retries the
-# next non-Bluetooth port on failure, and reports per-op pass/fail in the log.
-function Get-BatchArgs($port, $op) {
-    $dev = ("$($txtDev.Text)").Trim()
-    $isp = ("$($txtIspBaud.Text)").Trim()
-    $auto = ''; if ($chkAuto.Checked) { $auto = '-autoisp 1 0' }
-    $mem = 'FLASH'
-    try { $m1 = ("$($chkTarget.Text)").Trim(); if ($m1 -ne '') { $mem = $m1 } } catch {}
-    return ("-device {0} -hardware RS232 -port {1} -baudrate {2} {3} -operation MEMORY {4} {5}" -f $dev, $port, $isp, $auto, $mem, $op)
-}
-# Runs one batchisp operation across the retry port list. Returns the port that
-# worked (empty on failure). Logs every attempt loudly.
-function Invoke-OpOnPorts($op, $label) {
-    $all = @(Get-ComPortsFiltered)
-    $sel = ("$($cmbPort.Text)").Trim()
-    $list = @()
-    if ($sel -ne '' -and ($all -contains $sel)) { $list += $sel }
-    if (Get-AutoFlow 'Auto-retry other ports') {
-        foreach ($p in $all) { if ($p -ne $sel) { $list += $p } }
-    } else { Log 'auto-retry off - only trying ' + $sel }
-    if ($list.Count -eq 0) { Log ('no COM ports available for ' + $label); return '' }
-    foreach ($tryPort in $list) {
-        Log ("$label on ${tryPort}: batchisp.exe " + (Get-BatchArgs $tryPort $op))
-        try {
-            $p = Invoke-BatchIsp (Get-BatchArgs $tryPort $op)
-            if ($p -eq $null) { Log ($label + ' timed out on ' + $tryPort + ' - a modal dialog may be blocking it (usually a missing Atmel DLL). Trying next port'); continue }
-        } catch { Log ("$label launch failed on ${tryPort}: " + $_.Exception.Message); continue }
-        if ($p.ExitCode -eq 0) {
-            Log ("$label OK on ${tryPort}")
-            $cmbPort.Text = $tryPort
-            return $tryPort
-        }
-        Log ("$label FAIL exit " + $p.ExitCode + " on ${tryPort} -- trying next port")
-    }
-    Log ("$label failed on all " + $list.Count + " port(s)")
-    return ''
-}
-# Runs batchisp with a timeout. A missing Atmel DLL makes batchisp raise a
-# MODAL message box, and -Wait with no timeout would hang the app until someone
-# clicked OK - which is exactly the "AtLibUsbDfu.dll not found" trap. Timing out
-# and killing the process makes the dialog go away and lets the app report.
-function Invoke-BatchIsp($argString, [int]$TimeoutSec = 300) {
-    Log ("batchisp.exe $argString")
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $BatchIsp
-    $psi.Arguments = $argString
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.CreateNoWindow = $true
-    $proc = [System.Diagnostics.Process]::Start($psi)
-    # Poll instead of WaitForExit: blocking the UI thread freezes the whole app,
-    # so the progress popup never paints and it looks hung. DoEvents keeps the
-    # form alive while batchisp runs.
-    $deadline = (Get-Date).AddSeconds($TimeoutSec)
-    while (-not $proc.HasExited -and (Get-Date) -lt $deadline) {
-        [System.Windows.Forms.Application]::DoEvents()
-        Start-Sleep -Milliseconds 50
-    }
-    if (-not $proc.HasExited) {
-        try { $proc.Kill() } catch {}
-        $out = $proc.StandardOutput.ReadToEnd(); if ($out) { Log ("batchisp stdout: $out") }
-        $err = $proc.StandardError.ReadToEnd(); if ($err) { Log ("batchisp stderr: $err") }
-        return $null   # timed out
-    }
-    $out = $proc.StandardOutput.ReadToEnd(); if ($out) { Log ("batchisp stdout: $out") }
-    $err = $proc.StandardError.ReadToEnd(); if ($err) { Log ("batchisp stderr: $err") }
-    Log ("batchisp exit code: $($proc.ExitCode)")
-    # Detect "Synchronizing target... FAIL Timeout error" = board not in ISP mode
-    if ($out -match 'Synchronizing target.*FAIL.*Timeout') {
-        Log "DETECTED: Synchronizing target timeout - showing ISP mode popup"
-        $msg = 'Board not in ISP mode (Synchronizing target timeout).`n`n' +
-               'Fix: Power off, hold PSEN + RESET together, power on.`n' +
-               'Then uncheck AutoISP (toolbar) and press Run again.'
-        try {
-            Log "Attempting to show popup..."
-            # Use SynchronizationContext to run on UI thread (fixes BeginInvoke overload error)
-            $ctx = [System.Windows.Forms.WindowsFormsSynchronizationContext]::Current
-            if ($ctx) {
-                $ctx.Post({
-                    Log "Inside Post - creating popup"
-                    $popup = New-Object Windows.Forms.Form
-                    $popup.Text = 'ISP Mode Required'
-                    $popup.Size = New-Object Drawing.Size(420, 180)
-                    $popup.StartPosition = 'CenterParent'
-                    $popup.FormBorderStyle = 'FixedDialog'
-                    $popup.MaximizeBox = $false; $popup.MinimizeBox = $false
-                    $popup.ShowInTaskbar = $false
-                    Set-AppIcon $popup
-                    $lbl = New-Object Windows.Forms.Label
-                    $lbl.Text = $msg
-                    $lbl.Location = New-Object Drawing.Point(12, 12)
-                    $lbl.Size = New-Object Drawing.Size(380, 90)
-                    $lbl.Font = New-Object Drawing.Font('Segoe UI', 9)
-                    $popup.Controls.Add($lbl)
-                    $btn = New-Object Windows.Forms.Button
-                    $btn.Text = 'OK'
-                    $btn.DialogResult = 'OK'
-                    $btn.Location = New-Object Drawing.Point(160, 110)
-                    $btn.Size = New-Object Drawing.Size(80, 28)
-                    $popup.Controls.Add($btn)
-                    $popup.AcceptButton = $btn
-                    # Auto-close after 5 seconds
-                    $timer = New-Object Windows.Forms.Timer
-                    $timer.Interval = 5000
-                    $timer.Add_Tick({ $popup.Close(); $timer.Stop(); $timer.Dispose() })
-                    $timer.Start()
-                    $null = $popup.ShowDialog($form)
-                    Log "Popup closed"
-                }, $null)
-                Log "Posted to sync context"
-            } else {
-                Log "No sync context, trying BeginInvoke fallback"
-                $action = {
-                    Log "Inside BeginInvoke - creating popup"
-                    $popup = New-Object Windows.Forms.Form
-                    $popup.Text = 'ISP Mode Required'
-                    $popup.Size = New-Object Drawing.Size(420, 180)
-                    $popup.StartPosition = 'CenterParent'
-                    $popup.FormBorderStyle = 'FixedDialog'
-                    $popup.MaximizeBox = $false; $popup.MinimizeBox = $false
-                    $popup.ShowInTaskbar = $false
-                    Set-AppIcon $popup
-                    $lbl = New-Object Windows.Forms.Label
-                    $lbl.Text = $msg
-                    $lbl.Location = New-Object Drawing.Point(12, 12)
-                    $lbl.Size = New-Object Drawing.Size(380, 90)
-                    $lbl.Font = New-Object Drawing.Font('Segoe UI', 9)
-                    $popup.Controls.Add($lbl)
-                    $btn = New-Object Windows.Forms.Button
-                    $btn.Text = 'OK'
-                    $btn.DialogResult = 'OK'
-                    $btn.Location = New-Object Drawing.Point(160, 110)
-                    $btn.Size = New-Object Drawing.Size(80, 28)
-                    $popup.Controls.Add($btn)
-                    $popup.AcceptButton = $btn
-                    $timer = New-Object Windows.Forms.Timer
-                    $timer.Interval = 5000
-                    $timer.Add_Tick({ $popup.Close(); $timer.Stop(); $timer.Dispose() })
-                    $timer.Start()
-                    $null = $popup.ShowDialog($form)
-                    Log "Popup closed"
-                }
-                $form.BeginInvoke($action.GetNewClosure())
-                Log "Popup invoked via BeginInvoke"
-            }
-        } catch { Log "POPUP ERROR: $($_.Exception.Message)" }
-    }
-    $procEx = New-Object PSObject -Property @{ ExitCode = $proc.ExitCode }
-    return $procEx
-}
-
 function Device-Erase($blocks) {
     Close-Serial; Start-Sleep -Milliseconds 150
     $op = 'ERASE F'
@@ -1849,10 +1720,10 @@ function Show-SpecialBits {
 function Run-BatchIsp($extraOp) {
     # Task 18: snapshot live control values up front --- an open modeless
     # Settings can never desync a flash started from the main window.
-    $hex = ("$($cmbHex.Text)").Trim('" ').Trim()
-    $snapDev = ("$($txtDev.Text)").Trim()
-    $snapPort = ("$($cmbPort.Text)").Trim()
-    $snapIsp = ("$($txtIspBaud.Text)").Trim()
+    $hex = $cfg.HexFile.Trim('" ').Trim()
+    $snapDev = $txtDev.Text.Trim()
+    $snapPort = $cmbPort.Text.Trim()
+    $snapIsp = $txtIspBaud.Text.Trim()
     if ($hex -eq '' -or -not (Test-Path $hex)) { Log 'pick a valid .hex file first (Ctrl+O)'; return }
     if (-not (Test-Path $BatchIsp)) { Log ('batchisp not found: ' + $BatchIsp); return }
     $wasOpen = ($port -ne $null -and $port.IsOpen)
@@ -2068,6 +1939,16 @@ $form.Add_Shown({
         $guessed = Invoke-DeviceGuess
         if ($guessed -ne $null -and $guessed -ne '') { $txtDev.Text = $guessed; Log ('auto-detected device: ' + $guessed) }
         $script:PendingDeviceGuess = $false
+    }
+    # Auto-run flash on startup (for testing)
+    if ($AutoRun -and -not $Cli) {
+        Log "AUTO-RUN: Triggering flash on startup"
+        try {
+            Run-StagedFlash
+        } catch {
+            Log "RSF EXCEPTION: $($_.Exception.Message)"
+            $_.Exception.StackTrace.Split("`n") | ForEach-Object { Log "  $_" }
+        }
     }
 })
 

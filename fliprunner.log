@@ -1,1 +1,22 @@
-2026-10-23 22:37:05 FLIPpen Hel started
+2026-10-24 09:48:36 FLIPpen Hel started
+2026-10-24 09:48:36 AUTO-RUN: Triggering flash on startup
+2026-10-24 09:48:36 RSF: entering hex='C:\Users\Louis\OneDrive\Documents\CodeBlocks\doom_fire\bin\Debug\doom_fire.hex' dev=AT89C51RD2 port=COM3 isp=115200
+2026-10-24 09:48:36 RSF: stages=3
+2026-10-24 09:48:36 [Erase] MEMORY FLASH ERASE F
+2026-10-24 09:48:36 RSF: calling batchisp for Erase
+2026-10-24 09:48:36 batchisp.exe -device AT89C51RD2 -hardware RS232 -port COM3 -baudrate 115200 -autoisp 1 0 -operation MEMORY FLASH ERASE F
+2026-10-24 09:48:37 batchisp stdout: Running batchisp 1.2.5 on Sat Oct 24 09:48:37 2026
+
+
+
+AT89C51RD2 - RS232 - COM3 - 115200
+
+
+Device selection....................... PASS 
+Hardware selection..................... PASS 
+Opening port........................... FAIL	Cannot open port.
+ISP done.
+
+2026-10-24 09:48:37 batchisp exit code: -1
+2026-10-24 09:48:37 FAIL exit -1
+2026-10-24 09:48:37 RSF: END flashOk=False
