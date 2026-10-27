@@ -1584,49 +1584,46 @@ function Run-StagedFlash {
     Log "RSF: entering hex='$hex' dev=AT89C51RD2 port=COM3 isp=115200"
     if ($hex -eq '' -or -not (Test-Path $hex)) { Log 'pick a valid .hex file first (Ctrl+O)'; return }
     if (-not (Test-Path $BatchIsp)) { Log ('batchisp not found: ' + $BatchIsp); return }
-    
-    $stages = @()
-    $stages += @{ Name='Erase'; Op='MEMORY FLASH ERASE F' }
-    $stages += @{ Name='Program'; Op=('MEMORY FLASH LOADBUFFER "' + $hex + '" PROGRAM') }
-    $stages += @{ Name='Verify'; Op='MEMORY FLASH VERIFY' }
-    Log "RSF: stages=$($stages.Count)"
-    
+
+    # Build a single operation string with all checked stages — just like normal FLIP:
+    # batchisp -device ... -operation MEMORY FLASH ERASE F BLANKCHECK LOADBUFFER "file" PROGRAM VERIFY START RESET 0
+    $op = 'MEMORY FLASH'
+    $stageNames = @()
+    if ($chkOps['Erase'].Checked) { $op += ' ERASE F'; $stageNames += 'Erase' }
+    if ($chkOps['Blank Check'].Checked) { $op += ' BLANKCHECK'; $stageNames += 'Blank Check' }
+    $op += ' LOADBUFFER "' + $hex + '" PROGRAM'; $stageNames += 'Program'
+    if ($chkOps['Verify'].Checked) { $op += ' VERIFY'; $stageNames += 'Verify' }
+    if ($chkOps['Start Application'].Checked) { $op += ' START RESET 0'; $stageNames += 'Start Application' }
+    Log "RSF: op='$op'"
+
     $flashOk = $false
     $btnRun.Enabled = $false; $btnStartApp.Enabled = $false
     Show-ProgPopup
-    $progOverall.Maximum = $stages.Count
+    $progOverall.Maximum = 1
     $progStage.Maximum = 100
-    
+    $progOverall.Value = 0
+    $progStage.Value = 0
+    $lblStage.Text = 'Running batchisp...'
+    $lblDetail.Text = 'Port: COM3'
+
     $tryPort = "COM3"
-    $portOk = $true
-    $stageIdx = 0
-    foreach ($st in $stages) {
-        if ($script:progCancel) { $portOk = $false; break }
-        $stageIdx++
-        $progOverall.Value = $stageIdx - 1
-        $progStage.Value = 0
-        $lblStage.Text = "Stage $stageIdx / $($stages.Count): $($st.Name)"
-        $lblDetail.Text = "Port: $tryPort"
-        Log-Prog ("[$($st.Name)] $($st.Op)")
-        $progStage.Value = 30
-        $args = "-device AT89C51RD2 -hardware RS232 -port $tryPort -baudrate 115200 -autoisp 1 0 -operation $($st.Op)"
-        Log "RSF: calling batchisp for $($st.Name)"
-        $stOk = $true
-        try {
-            $p = Invoke-BatchIsp $args
-            if ($p -eq $null) { Log-Prog ('batchisp timed out'); $portOk = $false; break }
+    $auto = ''; if ($chkAuto.Checked) { $auto = '-autoisp 1 0' }
+    $args = "-device AT89C51RD2 -hardware RS232 -port $tryPort -baudrate 115200 $auto -operation $op"
+    Log "RSF: calling batchisp once with all stages"
+
+    $stOk = $true
+    try {
+        $p = Invoke-BatchIsp $args
+        if ($p -eq $null) { Log-Prog ('batchisp timed out'); $stOk = $false }
+        else {
             $progStage.Value = 100
+            $progOverall.Value = 1
             if ($p.ExitCode -ne 0) { Log-Prog ("FAIL exit $($p.ExitCode)"); $stOk = $false }
-            else { Log-Prog "OK" }
-        } catch { Log-Prog ("EXCEPTION: $($_.Exception.Message)"); $stOk = $false }
-        try { Set-OpResult $st.Name $stOk } catch {}
-        if (-not $stOk) { $portOk = $false; break }
-    }
-    
-    if ($portOk -and -not $script:progCancel) {
-        $flashOk = $true
-        Log-Prog 'ALL STAGES OK'
-    }
+            else { Log-Prog 'ALL STAGES OK' }
+        }
+    } catch { Log-Prog ("EXCEPTION: $($_.Exception.Message)"); $stOk = $false }
+
+    if ($stOk) { $flashOk = $true }
     if ($script:progCancel) { Log-Prog 'CANCELLED' }
     Log "RSF: END flashOk=$flashOk"
     Hide-ProgPopup
